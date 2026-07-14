@@ -67,7 +67,7 @@ jobs:
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520
         with:
-          version: latest
+          version: 2.109.1
       - name: Start clean local Supabase stack
         run: supabase start
       - name: Reapply migrations and seed from scratch
