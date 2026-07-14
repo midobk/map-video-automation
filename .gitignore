@@ -11,3 +11,8 @@ coverage/
 *.tsbuildinfo
 supabase/.branches/
 supabase/.temp/
+
+# Remotion studio — generated renders and generated media are not committed.
+apps/remotion-studio/out/
+apps/remotion-studio/public/sfx/*.wav
+apps/remotion-studio/public/**/voiceover/*.wav

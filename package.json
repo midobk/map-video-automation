@@ -18,7 +18,12 @@
     "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm verify",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "secrets:scan": "bash scripts/secret-scan.sh"
+    "secrets:scan": "bash scripts/secret-scan.sh",
+    "remotion:studio": "pnpm --filter @mapvideo/remotion-studio exec remotion studio",
+    "remotion:render:fixture": "pnpm --filter @mapvideo/remotion-studio exec remotion render starter out/starter/starter.mp4",
+    "remotion:frame:fixture": "pnpm --filter @mapvideo/remotion-studio exec remotion still starter out/starter/starter-frame.png 60",
+    "sfx:generate": "node scripts/media/generate-sfx.mjs",
+    "voiceover:generate": "node scripts/media/generate-voiceover.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
