@@ -11,7 +11,8 @@ Phase 0 establishes a safe local foundation. AI providers, cloud rendering, Open
 - Node.js 22.16.x
 - Corepack/pnpm 10.13.x
 - FFmpeg and ffprobe
-- Docker and Supabase CLI are optional during Phase 0 and become required for full local database development.
+- Gitleaks for the complete local secret scan
+- Docker and Supabase CLI are optional for normal Phase 0 development; CI uses them to rebuild the database from scratch and verify every migration.
 
 ## Start
 
@@ -19,6 +20,7 @@ Phase 0 establishes a safe local foundation. AI providers, cloud rendering, Open
 corepack enable
 pnpm bootstrap
 pnpm run ci
+pnpm secrets:scan
 ```
 
 Run the web app:
@@ -36,4 +38,5 @@ Open `http://localhost:3000`.
 - `PUBLISHING_KILL_SWITCH=true`
 - `ALLOW_LOCAL_EXTERNAL_PUBLISHING=false`
 
+Deployment settings are documented in `docs/deployment/vercel.md`.
 See the complete specification in `docs/AI_MAP_VIDEO_AUTOMATION_IMPLEMENTATION_V2.md`.
