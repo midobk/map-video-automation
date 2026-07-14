@@ -5,7 +5,7 @@ import { parseEnvironment, type Environment } from '@mapvideo/shared';
  * Keep this module out of client components.
  */
 export function readServerEnvironment(
-  input: NodeJS.ProcessEnv = process.env,
+  input: Record<string, string | undefined> = process.env,
 ): Environment {
   return parseEnvironment(input);
 }
