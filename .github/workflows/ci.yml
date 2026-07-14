@@ -35,8 +35,16 @@ jobs:
           ffprobe -version | head -n 1
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Validate
-        run: pnpm run ci
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Verify safe runtime configuration
+        run: pnpm verify
       - name: Scan repository with Gitleaks
         uses: gitleaks/gitleaks-action@961680e5305a30eb575f3ddf6bb6b2e265b68f0a
         env:
