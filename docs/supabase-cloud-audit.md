@@ -2,32 +2,60 @@
 
 Project reference: `ycnxmqmgqgddhaeuyjcg`
 
-## Read-only audit result
+## Project
 
-- Project name: `map-video-automation`
+- Name: `map-video-automation`
 - Status: `ACTIVE_HEALTHY`
 - Region: `us-east-1`
-- Postgres: 17
-- Public schema tables: none
-- Applied migrations: none
-- Active publishable key: present
-- Legacy anon key: present
-- Performance advisor: no findings
+- PostgreSQL: 17
+- The owner accepted the `us-east-1` region for this project.
 
-## Security advisor finding
+## Applied migrations
 
-Supabase reports that `public.rls_auto_enable()` is a `SECURITY DEFINER` function executable by `anon` and `authenticated`. The function is used by the enabled `ensure_rls` event trigger to automatically enable RLS on new public tables.
+Applied to the cloud project on 2026-07-14:
 
-Before production use, revoke direct API-role execution without disabling the event trigger:
+- `20260714212905_phase0_marker.sql`
+- `20260714212910_harden_rls_auto_enable.sql`
 
-```sql
-revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
-```
+The repository filenames match the cloud migration versions.
 
-This must be applied through a reviewed migration, followed by a fresh security-advisor check.
+## Schema verification
 
-## Phase 0 migration review
+`public.foundation_metadata` exists with:
 
-The existing Phase 0 migration creates only `public.foundation_metadata`, explicitly enables RLS, and creates no browser-access policy. It is safe in principle, but no cloud migration should be applied until the owner confirms that the `us-east-1` project region is intentional.
+- `key text` primary key
+- `value jsonb not null`
+- `created_at timestamptz not null default now()`
+- RLS enabled
+- zero RLS policies
+- zero rows
+- the expected Phase 0 table comment
 
-No secret or API key is stored in this repository.
+Supabase grants API roles table privileges by default, but RLS is enabled and no policies exist. Browser and API access are therefore intentionally fail-closed until a later reviewed phase introduces explicit policies.
+
+## RLS helper hardening
+
+Direct execution of `public.rls_auto_enable()` is revoked from:
+
+- `PUBLIC`
+- `anon`
+- `authenticated`
+- `service_role`
+
+The managed `ensure_rls` event trigger remains enabled.
+
+## Advisor results
+
+Security:
+
+- The previous anonymous and authenticated `SECURITY DEFINER` execution warnings are cleared.
+- One informational item remains: `rls_enabled_no_policy` for `public.foundation_metadata`. This is intentional for the Phase 0 deny-by-default marker table.
+- See the [Supabase database linter reference](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+
+Performance:
+
+- No findings.
+
+## Secrets
+
+No Supabase secret or API key is stored in this repository. Cloud validation did not expose any keys.
