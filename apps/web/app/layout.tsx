@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { readServerEnvironment } from '../lib/environment.server';
 import './styles.css';
 
 export const metadata: Metadata = {
@@ -8,9 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const environment = readServerEnvironment();
+
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body data-app-environment={environment.APP_ENV}>{children}</body>
     </html>
   );
 }
