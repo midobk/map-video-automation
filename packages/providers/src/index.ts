@@ -1,9 +1,14 @@
 export type ProviderMode = 'mock' | 'openai';
 
-export interface StructuredGenerationRequest {
+export interface RuntimeDecoder<T> {
+  parse(input: unknown): T;
+}
+
+export interface StructuredGenerationRequest<T> {
   task: string;
   input: unknown;
   idempotencyKey: string;
+  outputDecoder: RuntimeDecoder<T>;
 }
 
 export interface StructuredGenerationResult<T> {
@@ -14,7 +19,7 @@ export interface StructuredGenerationResult<T> {
 
 export interface AiProvider {
   generateStructured<T>(
-    request: StructuredGenerationRequest,
+    request: StructuredGenerationRequest<T>,
   ): Promise<StructuredGenerationResult<T>>;
 }
 
@@ -22,10 +27,12 @@ export class MockAiProvider implements AiProvider {
   public constructor(private readonly fixture: unknown) {}
 
   public async generateStructured<T>(
-    request: StructuredGenerationRequest,
+    request: StructuredGenerationRequest<T>,
   ): Promise<StructuredGenerationResult<T>> {
+    const output = request.outputDecoder.parse(structuredClone(this.fixture));
+
     return Promise.resolve({
-      output: structuredClone(this.fixture) as T,
+      output,
       providerRequestId: `mock:${request.idempotencyKey}`,
       estimatedCostUsd: 0,
     });
