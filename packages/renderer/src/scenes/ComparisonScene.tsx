@@ -32,7 +32,7 @@ export const ComparisonScene: React.FC<SceneProps> = ({ scene, theme }) => {
   };
 
   return (
-    <SceneShell theme={theme}>
+    <SceneShell theme={theme} reserveCaptionSpace={Boolean(scene.caption)}>
       <div
         style={{
           display: 'flex',
