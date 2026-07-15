@@ -7,10 +7,10 @@ function durationFrames(durationSeconds: number): number {
 }
 
 /**
- * Bound an overlap to both adjacent scenes while preserving at least one
- * non-overlapped frame per scene. This guarantees the schedule cursor always
- * moves forward, even when a valid scene is shorter than the requested
- * transition.
+ * Bound an overlap to both adjacent scene lengths while preserving at least one
+ * frame of forward schedule progress at every boundary. This prevents a short
+ * valid scene from moving the cursor backward when the requested transition is
+ * longer than the scene.
  */
 function boundedOverlapFrames(
   requestedFrames: number,
