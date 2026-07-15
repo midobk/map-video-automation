@@ -2,26 +2,43 @@
 
 ## Goal
 
-Keep `@mapvideo/renderer` free of direct ElevenLabs or other provider imports.
-Voice synthesis happens through an internal `VoiceProvider` interface.
+Keep compositions provider-agnostic. Voice synthesis happens through the
+`VoiceProvider` interface, and real adapters are activated only through explicit
+operator configuration.
 
 ## Interface
 
 ```ts
 export interface VoiceProvider {
-  synthesize(text: string, options: VoiceSynthesizeOptions): Promise<VoiceResult>;
+  synthesize(request: VoiceRequest): Promise<VoiceResult>;
 }
 ```
 
 ## Implementations
 
-- `MockVoiceProvider` returns deterministic WAV metadata for tests and local
+- `MockVoiceProvider` returns deterministic WAV audio for tests and local
   previews.
-- `ElevenLabsVoiceProvider` calls the ElevenLabs API when a real voiceover is
-  requested.
+- `ElevenLabsVoiceAdapter` returns MP3 bytes only when explicitly selected.
+
+## Safe output paths
+
+`scripts/media/generate-voiceover.mjs` validates the project id and every
+narration line id as a single path segment before it performs synthesis or file
+writes. Separators, dot segments, absolute paths, whitespace, and other unsafe
+characters are rejected, preventing configuration data from escaping
+`public/<project>/voiceover/`.
+
+## Duration metadata
+
+A positive duration reported by a provider is accepted. Deterministic WAV
+fixtures may derive duration from their PCM header. Compressed output such as
+MP3 is measured from the written file with `ffprobe` through the server-only
+`@mapvideo/renderer/voice/server` export. MP3 bytes are never parsed with the
+WAV-header helper.
 
 ## Manifest
 
-`scripts/media/generate-voiceover.mjs` builds a `voiceoverManifest`, iterates
-every scene that needs a voiceover, and delegates each call to the configured
-provider. The manifest is written to `out/voiceover-manifest.json`.
+Each generated audio file receives a validated adjacent manifest containing the
+text hash, provider, model, voice id, relative audio path, measured duration,
+generation timestamp, and optional provider request id. Authentication material
+is never written to the manifest.
