@@ -5,6 +5,7 @@ import {
   captionDirection,
   captionAvailableWidth,
 } from '../src';
+import { resolveSceneCaptionPresentation } from '../src/scenes/caption-presentation';
 
 describe('caption splitting', () => {
   it('keeps a short sentence on one line', () => {
@@ -38,6 +39,38 @@ describe('caption direction', () => {
   it('marks English and French as LTR', () => {
     expect(captionDirection('en')).toBe('ltr');
     expect(captionDirection('fr')).toBe('ltr');
+  });
+});
+
+describe('scene caption presentation', () => {
+  it('propagates Arabic and uses the complete scene duration', () => {
+    const presentation = resolveSceneCaptionPresentation({
+      id: 'long-arabic-title',
+      kind: 'title',
+      durationSeconds: 10,
+      title: 'عنوان',
+      caption: 'شرح عربي',
+      captionLanguage: 'ar',
+    });
+
+    expect(presentation).toEqual({
+      language: 'ar',
+      startFrame: 0,
+      endFrame: 300,
+    });
+  });
+
+  it('defaults older plans without a language to English', () => {
+    const presentation = resolveSceneCaptionPresentation({
+      id: 'legacy-title',
+      kind: 'title',
+      durationSeconds: 2,
+      title: 'Title',
+      caption: 'Caption',
+    });
+
+    expect(presentation.language).toBe('en');
+    expect(presentation.endFrame).toBe(60);
   });
 });
 
