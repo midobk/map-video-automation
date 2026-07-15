@@ -18,7 +18,7 @@ export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
   const captionPresentation = resolveSceneCaptionPresentation(scene);
 
   return (
-    <SceneShell theme={theme}>
+    <SceneShell theme={theme} reserveCaptionSpace={Boolean(scene.caption)}>
       <div
         style={{
           display: 'flex',
