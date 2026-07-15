@@ -1,0 +1,6 @@
+.next
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+docs/AI_MAP_VIDEO_AUTOMATION_IMPLEMENTATION_V2.md
