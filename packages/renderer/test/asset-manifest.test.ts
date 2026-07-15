@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   parseAssetManifest,
+  validateAssetManifest,
   AssetManifestError,
   AssetPathError,
 } from '../src';
@@ -16,6 +17,23 @@ describe('asset manifest parsing', () => {
       { path: 'sfx/click.wav', required: false, type: 'audio' },
     ]);
     expect(manifest).toHaveLength(2);
+  });
+
+  it('rejects a declared media type that does not match the extension before disk access', () => {
+    expect(() =>
+      validateAssetManifest([
+        { path: 'fixtures/maps/world.svg', required: true, type: 'video' },
+      ]),
+    ).toThrow(AssetPathError);
+  });
+
+  it('rejects duplicate paths after normalization', () => {
+    expect(() =>
+      validateAssetManifest([
+        { path: 'fixtures/maps/./world.svg', required: true, type: 'image' },
+        { path: 'fixtures/maps/world.svg', required: false, type: 'image' },
+      ]),
+    ).toThrow(AssetPathError);
   });
 
   it('rejects an extension that does not match the declared type', () => {
