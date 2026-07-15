@@ -38,6 +38,27 @@ describe('map-video plan schema', () => {
     expect(plan.scenes).toHaveLength(6);
   });
 
+  it('accepts a supported caption language', () => {
+    const scene = mapVideoSceneSchema.parse({
+      ...baseScene,
+      kind: 'title',
+      title: 'مرحبا',
+      captionLanguage: 'ar',
+    });
+    expect(scene.captionLanguage).toBe('ar');
+  });
+
+  it('rejects an unsupported caption language', () => {
+    expect(() =>
+      mapVideoSceneSchema.parse({
+        ...baseScene,
+        kind: 'title',
+        title: 'Hola',
+        captionLanguage: 'es',
+      }),
+    ).toThrow();
+  });
+
   it('rejects an unsupported scene kind', () => {
     expect(() =>
       mapVideoPlanSchema.parse({
