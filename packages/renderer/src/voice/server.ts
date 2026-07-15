@@ -2,6 +2,11 @@ import { execFile } from 'node:child_process';
 import { estimateWavDurationSeconds } from './wav';
 import type { VoiceResult } from './provider';
 
+export {
+  assertSafeVoiceoverPathSegment,
+  UnsafeVoiceoverPathSegmentError,
+} from './path-segment';
+
 export type AudioDurationProbe = (filePath: string) => Promise<number>;
 
 /** Measure an audio file with ffprobe and require a positive finite duration. */
