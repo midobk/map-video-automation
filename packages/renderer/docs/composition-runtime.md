@@ -49,9 +49,9 @@ registry entry.
 
 `buildSceneSchedule()` converts scene durations and the requested transition to
 frames. At every boundary, overlap is bounded by both adjacent scene lengths and
-at least one non-overlapped frame is preserved per scene. Therefore a short but
-valid scene cannot move the scheduling cursor backward or create a negative
-start frame.
+the next scene starts at least one frame after the current scene. Therefore a
+short but valid scene cannot move the scheduling cursor backward or create a
+negative start frame.
 
 `calculateMapVideoMetadata()` derives total duration from the final bounded
 schedule rather than using a separate formula, keeping Remotion metadata and
