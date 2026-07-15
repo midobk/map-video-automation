@@ -77,3 +77,49 @@ jobs:
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
+
+  render-fixture:
+    # Renders the PR 1A Remotion fixture and uploads the MP4 as a workflow
+    # artifact. Pulls in Remotion's bundled Chromium on first run, then caches
+    # it in the GitHub Actions workspace between steps. No secrets required,
+    # no external services touched.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/remotion-studio
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+      - name: Ensure FFmpeg is available
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+      - name: Render Remotion fixture (H.264 1080x1920 @30fps, ~6s)
+        run: pnpm exec remotion render starter out/starter/starter.mp4
+      - name: Probe rendered MP4
+        run: |
+          ffprobe -hide_banner -loglevel error \
+            -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
+            -show_entries format=duration,bit_rate \
+            out/starter/starter.mp4
+      - name: Upload fixture MP4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: remotion-fixture-mp4
+          path: apps/remotion-studio/out/starter/starter.mp4
+          if-no-files-found: error
+          retention-days: 7
