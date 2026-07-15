@@ -10,3 +10,7 @@ export {
 export { MockVoiceProvider } from './mock-provider';
 export { ElevenLabsVoiceAdapter } from './elevenlabs-adapter';
 export { encodeWav, estimateWavDurationSeconds } from './wav';
+export {
+  assertSafeVoiceoverPathSegment,
+  UnsafeVoiceoverPathSegmentError,
+} from './path-segment';
