@@ -14,6 +14,7 @@ describe('scene renderer registry', () => {
       'map-highlight',
       'outro',
       'ranking',
+      'stat-card',
       'title',
     ]);
   });

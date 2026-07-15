@@ -8,4 +8,8 @@ import type { MapVideoScene } from '../compositions/map-video/map-video-schema';
 export interface SceneProps {
   scene: MapVideoScene;
   theme: VideoTheme;
+  /** Global frame at which this scene starts in the composition timeline. */
+  startFrame: number;
+  /** Duration of this scene in frames, used for frame-driven animation. */
+  durationInFrames: number;
 }

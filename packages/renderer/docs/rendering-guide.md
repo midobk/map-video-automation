@@ -12,11 +12,20 @@ This runs `remotion studio` inside `apps/remotion-studio`, which registers the
 compositions exported by `@mapvideo/renderer`. Studio serves
 `apps/remotion-studio/public/` as the static-file root.
 
-## Rendering the fixture
+## Rendering the fixtures
 
 ```bash
-pnpm remotion:render:fixture   # MP4 -> apps/remotion-studio/out/starter/starter.mp4
-pnpm remotion:frame:fixture     # a single still at frame 60
+pnpm remotion:render:fixture         # starter MP4
+pnpm remotion:frame:fixture          # starter still at frame 60
+pnpm remotion:render:map-video       # neutral vector-map MP4
+pnpm remotion:render:rtl-fixture     # RTL vector-map MP4
+```
+
+New PR 1C fixtures are rendered directly through `remotion render`:
+
+```bash
+pnpm --filter @mapvideo/remotion-studio exec remotion render map-video-country-zoom out/map-video-country-zoom/map-video-country-zoom.mp4
+pnpm --filter @mapvideo/remotion-studio exec remotion render map-video-ranking out/map-video-ranking/map-video-ranking.mp4
 ```
 
 Generated renders are gitignored. Do not commit large MP4 files; use the

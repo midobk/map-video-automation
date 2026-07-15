@@ -21,11 +21,21 @@ export const titleSceneSchema = baseSceneSchema.extend({
   eyebrow: z.string().max(80).optional(),
 });
 
+const mapLabelSchema = z.object({
+  text: z.string().min(1).max(80),
+  longitude: z.number().finite(),
+  latitude: z.number().finite(),
+});
+
 export const mapHighlightSceneSchema = baseSceneSchema.extend({
   kind: z.literal('map-highlight'),
   label: z.string().min(1).max(120),
   highlighted: z.array(z.string().min(1).max(80)).min(1).max(8),
-  mapAsset: z.string().min(1).max(200),
+  projection: z.enum(['natural-earth', 'mercator', 'orthographic']).default('natural-earth'),
+  focusIsoCodes: z.array(z.string().length(3)).max(8).default([]),
+  contextIsoCodes: z.array(z.string().length(3)).max(8).default([]),
+  labels: z.array(mapLabelSchema).max(8).default([]),
+  mapAsset: z.string().min(1).max(200).optional(),
 });
 
 export const rankingSceneSchema = baseSceneSchema.extend({
@@ -41,6 +51,13 @@ export const rankingSceneSchema = baseSceneSchema.extend({
     )
     .min(2)
     .max(7),
+});
+
+export const statCardSceneSchema = baseSceneSchema.extend({
+  kind: z.literal('stat-card'),
+  headline: z.string().min(1).max(120),
+  value: z.string().min(1).max(40),
+  subtext: z.string().max(200).optional(),
 });
 
 export const comparisonSceneSchema = baseSceneSchema.extend({
@@ -71,6 +88,7 @@ export const mapVideoSceneSchema = z.discriminatedUnion('kind', [
   titleSceneSchema,
   mapHighlightSceneSchema,
   rankingSceneSchema,
+  statCardSceneSchema,
   comparisonSceneSchema,
   captionSceneSchema,
   outroSceneSchema,

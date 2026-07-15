@@ -30,6 +30,7 @@ length, and a list of scenes. Each scene is a discriminated union by `kind`:
 - `title`
 - `map-highlight`
 - `ranking`
+- `stat-card`
 - `comparison`
 - `caption`
 - `outro`

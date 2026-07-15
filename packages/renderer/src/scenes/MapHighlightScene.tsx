@@ -1,20 +1,44 @@
-import { Img, staticFile, useVideoConfig } from 'remotion';
+import { Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { resolveFontFamily } from '../assets/fonts';
 import { CaptionStrip } from '../captions/renderer';
+import { MapCanvas } from '../geo/MapCanvas';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
 
 /**
- * Map highlight scene. Displays a static map asset and highlights the named
- * regions in a bullet list. The asset is resolved through Remotion's static-file
- * API so it is bundled with the composition.
+ * Map highlight scene.
+ *
+ * By default renders a deterministic D3 Geo vector map from Natural Earth data.
+ * If a legacy `mapAsset` path is provided and no vector focus is configured,
+ * it falls back to the static image so older plans keep rendering.
  */
-export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
+export const MapHighlightScene: React.FC<SceneProps> = ({
+  scene,
+  theme,
+  startFrame,
+  durationInFrames,
+}) => {
   assertSceneKind(scene, 'map-highlight');
-  const { durationInFrames } = useVideoConfig();
+  const { durationInFrames: compositionDuration } = useVideoConfig();
+  const frame = useCurrentFrame();
   const headingFamily = resolveFontFamily(theme.typography.headingFamily);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
+
+  // Smooth camera move from a world view to the focused countries.
+  const zoomProgress =
+    scene.focusIsoCodes.length > 0
+      ? interpolate(frame, [startFrame, startFrame + durationInFrames], [0, 1], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+        })
+      : 0;
+
+  const hasVectorMap =
+    scene.focusIsoCodes.length > 0 ||
+    scene.contextIsoCodes.length > 0 ||
+    scene.labels.length > 0 ||
+    scene.mapAsset === undefined;
 
   return (
     <SceneShell theme={theme}>
@@ -47,14 +71,27 @@ export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
             minHeight: 0,
           }}
         >
-          <Img
-            src={staticFile(scene.mapAsset)}
-            style={{
-              maxWidth: '100%',
-              maxHeight: '100%',
-              objectFit: 'contain',
-            }}
-          />
+          {hasVectorMap ? (
+            <MapCanvas
+              width={920}
+              height={960}
+              theme={theme}
+              projection={scene.projection}
+              focusIsoCodes={scene.focusIsoCodes}
+              contextIsoCodes={scene.contextIsoCodes}
+              labels={scene.labels}
+              zoomProgress={zoomProgress}
+            />
+          ) : (
+            <Img
+              src={staticFile(scene.mapAsset ?? '')}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+              }}
+            />
+          )}
         </div>
 
         <div
@@ -90,7 +127,7 @@ export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
           text={scene.caption}
           theme={theme}
           startFrame={0}
-          endFrame={durationInFrames}
+          endFrame={compositionDuration}
           language="en"
         />
       )}

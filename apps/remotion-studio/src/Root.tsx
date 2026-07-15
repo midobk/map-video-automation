@@ -5,6 +5,8 @@ import {
   starterComposition,
   mapVideoComposition,
   mapVideoRtlComposition,
+  mapVideoCountryZoomComposition,
+  mapVideoRankingComposition,
 } from '@mapvideo/renderer';
 import type { AnyCompositionDefinition } from '@mapvideo/renderer';
 
@@ -21,6 +23,8 @@ const compositions: AnyCompositionDefinition[] = [
   starterComposition,
   mapVideoComposition,
   mapVideoRtlComposition,
+  mapVideoCountryZoomComposition,
+  mapVideoRankingComposition,
 ];
 
 function RegisteredComposition({ def }: { def: AnyCompositionDefinition }) {

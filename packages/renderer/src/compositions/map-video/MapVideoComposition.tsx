@@ -1,4 +1,4 @@
-import { Sequence } from 'remotion';
+import { AbsoluteFill, Sequence } from 'remotion';
 import { ThemeProvider } from '../../themes/theme';
 import { resolveSceneRenderer } from '../../scenes';
 import { buildSceneSchedule } from './calculate-metadata';
@@ -18,15 +18,22 @@ export const MapVideoComposition: React.FC<MapVideoPlan> = (plan) => {
 
   return (
     <ThemeProvider theme={theme}>
-      {scenes.map((scene, index) => {
-        const { startFrame, durationInFrames } = schedule[index]!;
-        const Scene = resolveSceneRenderer(scene.kind);
-        return (
-          <Sequence key={scene.id} from={startFrame} durationInFrames={durationInFrames}>
-            <Scene scene={scene} theme={theme} />
-          </Sequence>
-        );
-      })}
+      <AbsoluteFill style={{ backgroundColor: theme.colors.background }}>
+        {scenes.map((scene, index) => {
+          const { startFrame, durationInFrames } = schedule[index]!;
+          const Scene = resolveSceneRenderer(scene.kind);
+          return (
+            <Sequence key={scene.id} from={startFrame} durationInFrames={durationInFrames}>
+              <Scene
+                scene={scene}
+                theme={theme}
+                startFrame={startFrame}
+                durationInFrames={durationInFrames}
+              />
+            </Sequence>
+          );
+        })}
+      </AbsoluteFill>
     </ThemeProvider>
   );
 };

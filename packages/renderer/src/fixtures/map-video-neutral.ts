@@ -30,7 +30,17 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       durationSeconds: 3,
       label: 'Continents',
       highlighted: ['Africa', 'Asia', 'North America', 'South America', 'Antarctica', 'Oceania'],
-      mapAsset: 'fixtures/maps/world.svg',
+      projection: 'natural-earth',
+      focusIsoCodes: [],
+      contextIsoCodes: [],
+      labels: [
+        { text: 'Africa', longitude: 20, latitude: 5 },
+        { text: 'Asia', longitude: 90, latitude: 45 },
+        { text: 'North America', longitude: -100, latitude: 50 },
+        { text: 'South America', longitude: -60, latitude: -15 },
+        { text: 'Antarctica', longitude: 0, latitude: -80 },
+        { text: 'Oceania', longitude: 135, latitude: -25 },
+      ],
       caption: 'The continents cover about 29% of the surface.',
     },
     {

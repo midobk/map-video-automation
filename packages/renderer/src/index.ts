@@ -140,16 +140,49 @@ export {
 } from './captions';
 export { CaptionStrip, type CaptionStripProps } from './captions';
 
+// Vector map rendering (D3 Geo + Natural Earth).
+export {
+  MapCanvas,
+  countryDictionary,
+  countryByIso3,
+  countryByCanonicalName,
+  resolveCountryRecord,
+  resolveCountryName,
+  GEO_DATASET,
+  fitProjectionState,
+  interpolateProjectionState,
+  centroidOf,
+  createProjection,
+  allCountries,
+  landFeature,
+  findFeaturesByIsoCodes,
+  featureCollectionFromIsoCodes,
+  type MapLabel,
+  type ProjectionName,
+  type ProjectionState,
+  type CountryRecord,
+  type GeoDataset,
+} from './geo';
+
 // Map-video composition runtime.
 export {
   mapVideoPlanSchema,
   mapVideoSceneSchema,
+  titleSceneSchema,
+  mapHighlightSceneSchema,
+  rankingSceneSchema,
+  statCardSceneSchema,
+  comparisonSceneSchema,
+  captionSceneSchema,
+  outroSceneSchema,
   calculateMapVideoMetadata,
   calculatePlanDurationSeconds,
   buildSceneSchedule,
   MapVideoComposition,
   mapVideoComposition,
   mapVideoRtlComposition,
+  mapVideoCountryZoomComposition,
+  mapVideoRankingComposition,
   MAP_VIDEO_FPS,
   MAP_VIDEO_WIDTH,
   MAP_VIDEO_HEIGHT,
@@ -160,11 +193,5 @@ export {
 
 // Deterministic fixtures.
 export { starterFixtureProps } from './fixtures';
-export {
-  neutralMapVideoFixture,
-  neutralMapVideoFixtureName,
-} from './fixtures/map-video-neutral';
-export {
-  rtlMapVideoFixture,
-  rtlMapVideoFixtureName,
-} from './fixtures/map-video-rtl';
+export { neutralMapVideoFixture, neutralMapVideoFixtureName } from './fixtures/map-video-neutral';
+export { rtlMapVideoFixture, rtlMapVideoFixtureName } from './fixtures/map-video-rtl';

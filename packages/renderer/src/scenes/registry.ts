@@ -1,6 +1,7 @@
 import { TitleScene } from './TitleScene';
 import { MapHighlightScene } from './MapHighlightScene';
 import { RankingScene } from './RankingScene';
+import { StatCardScene } from './StatCardScene';
 import { ComparisonScene } from './ComparisonScene';
 import { CaptionScene } from './CaptionScene';
 import { OutroScene } from './OutroScene';
@@ -18,6 +19,7 @@ export const sceneRenderers = {
   title: TitleScene,
   'map-highlight': MapHighlightScene,
   ranking: RankingScene,
+  'stat-card': StatCardScene,
   comparison: ComparisonScene,
   caption: CaptionScene,
   outro: OutroScene,
