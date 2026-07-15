@@ -7,3 +7,4 @@ export {
 } from './start-schema';
 export { calculateStartMetadata } from './calculate-metadata';
 export { StartComposition } from './StartComposition';
+export { starterComposition } from './registry-entry';

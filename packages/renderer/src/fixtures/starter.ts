@@ -1,5 +1,5 @@
-import { startSchema, type StartProps } from './compositions/starter/start-schema';
-import { neutralDarkTheme } from './themes/examples';
+import { startSchema, type StartProps } from '../compositions/starter/start-schema';
+import { neutralDarkTheme } from '../themes/examples';
 
 /**
  * Deterministic fixture props for the starter composition.
