@@ -31,7 +31,7 @@ export interface AssetDeclaration {
   /** Expected media category, validated against the file extension. */
   type: AssetType;
   /** Optional human label for error messages. */
-  label?: string;
+  label?: string | undefined;
 }
 
 export class AssetPathError extends Error {

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <rect width="1080" height="1080" fill="#0b3d5c"/>
+  <text x="540" y="80" text-anchor="middle" font-family="Inter, sans-serif" font-size="40" fill="#ffffff" opacity="0.8">World Map — Public Domain Fixture</text>
+  <!-- Abstract continental shapes -->
+  <g fill="#3a8c3f" stroke="#2a6e2e" stroke-width="2">
+    <path d="M230,360 Q290,300 360,330 T450,420 T380,520 T260,480 T200,400 Z"/>
+    <path d="M480,300 Q560,260 640,290 T720,380 T650,470 T540,440 T460,360 Z"/>
+    <path d="M700,320 Q800,280 880,340 T950,450 T860,520 T740,480 T680,390 Z"/>
+    <path d="M240,560 Q340,520 440,560 T500,680 T380,740 T260,680 T210,600 Z"/>
+    <path d="M540,560 Q660,520 760,580 T820,700 T700,760 T580,700 T520,620 Z"/>
+    <path d="M800,600 Q900,560 980,620 T1020,720 T920,780 T800,720 T760,640 Z"/>
+    <path d="M300,760 Q420,720 520,780 T560,900 T420,940 T300,880 T260,800 Z"/>
+  </g>
+  <!-- Ocean label -->
+  <text x="540" y="1020" text-anchor="middle" font-family="Inter, sans-serif" font-size="32" fill="#8fc4e8" opacity="0.9">Atlantic · Pacific · Indian · Arctic · Southern Oceans</text>
+</svg>

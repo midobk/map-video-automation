@@ -3,9 +3,10 @@
  * Map Video Automation platform.
  *
  * This package contains animation helpers, asset-safety utilities, audio
- * behavior, validated themes, and props-driven compositions. It is consumed by
- * `apps/remotion-studio`, which is only the local development, preview, and
- * visual-inspection surface.
+ * behavior, validated themes, props-driven compositions, a generic scene-plan
+ * runtime, captions, voice-provider boundary, and asset/voiceover manifests.
+ * It is consumed by `apps/remotion-studio`, which is only the local
+ * development, preview, and visual-inspection surface.
  */
 
 // Animation helpers and spring presets.
@@ -33,8 +34,17 @@ export {
   type AssetDeclaration,
   type AllowedFontFamily,
 } from './assets';
+export {
+  assetManifestSchema,
+  parseAssetManifest,
+  safeParseAssetManifest,
+  AssetManifestError,
+  type AssetManifest,
+  type AssetManifestEntry,
+  type AssetManifestInput,
+} from './assets/manifest';
 
-// Audio behavior and optional audio.
+// Audio behavior, optional audio, and voice providers.
 export {
   resolveMissingAssetBehavior,
   enforceMissingAsset,
@@ -48,8 +58,26 @@ export {
   type AssetKind,
   type MissingAssetEvent,
   type AudioConfig,
+  type AudioConfigProviderProps,
   type OptionalAudioProps,
 } from './audio';
+export {
+  voiceProviderSchema,
+  voiceRequestSchema,
+  voiceResultSchema,
+  voiceoverManifestSchema,
+  parseVoiceoverManifest,
+  safeParseVoiceoverManifest,
+  hashVoiceoverText,
+  MockVoiceProvider,
+  ElevenLabsVoiceAdapter,
+  encodeWav,
+  estimateWavDurationSeconds,
+  type VoiceProvider,
+  type VoiceRequest,
+  type VoiceResult,
+  type VoiceoverManifest,
+} from './voice';
 
 // Validated themes.
 export {
@@ -65,7 +93,14 @@ export {
   type ExampleThemeId,
 } from './themes';
 
-// Compositions.
+// Composition registry and compositions.
+export {
+  type CompositionDefinition,
+  type AnyCompositionDefinition,
+  CompositionRegistry,
+  DuplicateCompositionIdError,
+  defineComposition,
+} from './compositions';
 export {
   startSchema,
   calculateStartMetadata,
@@ -73,8 +108,63 @@ export {
   START_FPS,
   START_WIDTH,
   START_HEIGHT,
+  starterComposition,
   type StartProps,
 } from './compositions';
 
-// Deterministic fixture.
+// Scene runtime.
+export {
+  sceneRenderers,
+  resolveSceneRenderer,
+  UnsupportedSceneKindError,
+  type SceneRendererRegistry,
+  type SceneProps,
+  SceneShell,
+} from './scenes';
+
+// Captions.
+export {
+  captionDirection,
+  captionLanguageSchema,
+  captionLineSchema,
+  captionTimingSchema,
+  splitCaptionText,
+  measureCaptionLines,
+  captionAvailableWidth,
+  CAPTION_SAFE_AREA,
+  CAPTION_LAYOUT,
+  type CaptionLanguage,
+  type CaptionDirection,
+  type CaptionLine,
+  type CaptionTiming,
+} from './captions';
+export { CaptionStrip, type CaptionStripProps } from './captions';
+
+// Map-video composition runtime.
+export {
+  mapVideoPlanSchema,
+  mapVideoSceneSchema,
+  calculateMapVideoMetadata,
+  calculatePlanDurationSeconds,
+  buildSceneSchedule,
+  MapVideoComposition,
+  mapVideoComposition,
+  mapVideoRtlComposition,
+  MAP_VIDEO_FPS,
+  MAP_VIDEO_WIDTH,
+  MAP_VIDEO_HEIGHT,
+  type MapVideoPlan,
+  type MapVideoScene,
+  type MapVideoSceneKind,
+} from './compositions/map-video';
+
+// Deterministic fixtures.
 export { starterFixtureProps } from './fixtures';
+export {
+  neutralMapVideoFixture,
+  neutralMapVideoFixtureName,
+} from './fixtures/map-video-neutral';
+export {
+  rtlMapVideoFixture,
+  rtlMapVideoFixtureName,
+} from './fixtures/map-video-rtl';

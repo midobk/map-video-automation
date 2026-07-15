@@ -22,8 +22,11 @@
     "remotion:studio": "pnpm --filter @mapvideo/remotion-studio exec remotion studio",
     "remotion:render:fixture": "pnpm --filter @mapvideo/remotion-studio exec remotion render starter out/starter/starter.mp4",
     "remotion:frame:fixture": "pnpm --filter @mapvideo/remotion-studio exec remotion still starter out/starter/starter-frame.png 60",
+    "remotion:render:map-video": "pnpm --filter @mapvideo/remotion-studio exec remotion render map-video out/map-video/map-video.mp4",
+    "remotion:render:rtl-fixture": "pnpm --filter @mapvideo/remotion-studio exec remotion render map-video-rtl out/map-video-rtl/map-video-rtl.mp4",
+    "visual-regression": "bash scripts/visual-regression.sh",
     "sfx:generate": "node scripts/media/generate-sfx.mjs",
-    "voiceover:generate": "node scripts/media/generate-voiceover.mjs"
+    "voiceover:generate": "node --import tsx scripts/media/generate-voiceover.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

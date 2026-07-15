@@ -1,13 +1,12 @@
+import React from 'react';
 import { Composition, Folder } from 'remotion';
+import type { AnyZodObject, CalculateMetadataFunction } from 'remotion';
 import {
-  StartComposition,
-  startSchema,
-  calculateStartMetadata,
-  START_FPS,
-  START_WIDTH,
-  START_HEIGHT,
-  starterFixtureProps,
+  starterComposition,
+  mapVideoComposition,
+  mapVideoRtlComposition,
 } from '@mapvideo/renderer';
+import type { AnyCompositionDefinition } from '@mapvideo/renderer';
 
 /**
  * Local Remotion Studio entry. Each composition is defined in
@@ -17,20 +16,37 @@ import {
  * Render the fixture with:
  *   pnpm remotion:render:fixture
  */
+
+const compositions: AnyCompositionDefinition[] = [
+  starterComposition,
+  mapVideoComposition,
+  mapVideoRtlComposition,
+];
+
+function RegisteredComposition({ def }: { def: AnyCompositionDefinition }) {
+  return (
+    <Composition<AnyZodObject, Record<string, unknown>>
+      id={def.id}
+      component={def.component as React.ComponentType<Record<string, unknown>>}
+      schema={def.schema as AnyZodObject}
+      calculateMetadata={
+        def.calculateMetadata as CalculateMetadataFunction<Record<string, unknown>>
+      }
+      fps={def.fps}
+      width={def.width}
+      height={def.height}
+      durationInFrames={def.durationInFrames}
+      defaultProps={def.defaultProps as Record<string, unknown>}
+    />
+  );
+}
+
 export const RemotionRoot: React.FC = () => {
   return (
     <Folder name="fixtures">
-      <Composition
-        id="starter"
-        component={StartComposition}
-        schema={startSchema}
-        calculateMetadata={calculateStartMetadata}
-        fps={START_FPS}
-        width={START_WIDTH}
-        height={START_HEIGHT}
-        durationInFrames={START_FPS * 6}
-        defaultProps={starterFixtureProps}
-      />
+      {compositions.map((def) => (
+        <RegisteredComposition key={def.id} def={def} />
+      ))}
     </Folder>
   );
 };
