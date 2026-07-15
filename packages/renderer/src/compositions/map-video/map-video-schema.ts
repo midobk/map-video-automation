@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { captionLanguageSchema } from '../../captions/types';
 import { videoThemeSchema } from '../../themes/theme-schema';
 
 /** Fixed geometry for all map-video compositions. */
@@ -11,6 +12,7 @@ const baseSceneSchema = z.object({
   id: z.string().min(1).max(64),
   durationSeconds: z.number().finite().positive().max(120),
   caption: z.string().max(300).optional(),
+  captionLanguage: captionLanguageSchema.optional(),
   voiceoverText: z.string().max(800).optional(),
 });
 
