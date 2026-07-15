@@ -7,6 +7,11 @@ Both pull-request heads had green checks, but the reviews finished after merge
 and reported six valid P2 findings. The defects therefore existed on `main` even
 though CI and Vercel were green.
 
+During PR #7 visual inspection, two additional validation defects were found:
+the selected-frame script always rendered frame 0, and bottom caption strips
+overlaid normal scene content. Those findings are included in this stabilization
+rather than being deferred.
+
 This report is the repository record for issue #6 and PR #7.
 
 ## Findings and remediation
@@ -47,8 +52,8 @@ scheduler subtracted the full transition at each boundary, allowing negative or
 reversed start frames.
 
 **Fix:** convert durations to frames once and bound each overlap by both adjacent
-scene lengths while preserving at least one non-overlapped frame per scene.
-Composition duration is derived from the same final schedule.
+scene lengths so every boundary advances by at least one frame. Composition
+duration is derived from the same final schedule.
 
 ### 5. Arabic captions were rendered with English direction metadata
 
@@ -68,34 +73,57 @@ longer than four seconds silently lost their captions.
 **Fix:** centralize scene-caption presentation and calculate the end frame from
 the validated scene duration and fixed map-video FPS.
 
+### 7. Visual-regression commands silently rendered frame 0
+
+The script passed the requested frame as an unsupported fourth positional
+argument. Remotion ignored it and used the default frame 0, so each composition's
+three supposedly distinct snapshots were actually the same first frame.
+
+**Fix:** pass the documented `--frame=<number>` flag. CI now uploads the actual
+first, middle, and final selected frames for visual inspection and compares two
+renders of each requested frame for byte determinism.
+
+### 8. Caption strips overlaid normal scene content
+
+The caption strip is absolutely positioned near the bottom of the 9:16 frame,
+but the generic scene content area did not reserve the strip's maximum envelope.
+Region chips and comparison cards could render beneath English and Arabic
+captions.
+
+**Fix:** `SceneShell` now reserves bottom space based on the caption layout's
+maximum line count, line height, padding, bottom offset, and a fixed visual gap.
+Every scene that renders a bottom caption opts into this reservation.
+
 ## Regression coverage
 
 The stabilization branch adds coverage for:
 
 - mismatched media type in the browser-safe manifest gate;
 - duplicates that appear only after path normalization;
-- unsafe project/narration output identifiers;
+- unsafe project and narration output identifiers;
 - MP3 duration fallback invoking a media probe;
 - provider-reported duration bypassing the probe;
 - transitions longer than adjacent scenes;
 - supported and unsupported caption languages;
 - Arabic fixture language metadata;
-- ten-second caption windows and legacy English fallback.
+- ten-second caption windows and legacy English fallback;
+- scene-shell caption-space calculation;
+- real selected-frame rendering through Remotion's `--frame` option.
 
 ## Process control added
 
 `AGENTS.md` now states that a pull request must not merge while CI, deployment
 checks, or independent review are pending. The reviewed commit must still be the
-current head, and every valid finding/thread must be addressed before merge.
+current head, and every valid finding and thread must be addressed before merge.
 
 A green head before review completion is not merge approval.
 
 ## Validation status
 
-PR #7 remains a draft until the current head passes all repository CI jobs,
-normal and RTL fixture rendering, visual regression, Vercel preview, and a new
-independent review. Results are recorded in the PR conversation rather than
-being predicted in this document.
+PR #7 remains a draft until the final current head passes all repository CI
+jobs, normal and RTL fixture rendering, selected-frame visual regression,
+Vercel preview, manual frame inspection, and a new independent review. Results
+are recorded in the PR conversation rather than being predicted here.
 
 ## Scope boundaries
 
