@@ -40,6 +40,30 @@ describe('metadata-driven timing', () => {
     expect(schedule[2]!.startFrame).toBe(120); // 45 + 90 - 15 overlap
   });
 
+  it('bounds overlap when a transition is longer than adjacent scenes', async () => {
+    const shortPlan: MapVideoPlan = {
+      theme: neutralDarkTheme,
+      projectId: 'short-scenes',
+      transitionSeconds: 2,
+      scenes: [
+        { id: 'short-a', kind: 'title', durationSeconds: 0.1, title: 'A' },
+        { id: 'short-b', kind: 'outro', durationSeconds: 0.1, title: 'B' },
+      ],
+    };
+
+    const schedule = buildSceneSchedule(shortPlan);
+    expect(schedule).toEqual([
+      { id: 'short-a', startFrame: 0, durationInFrames: 3 },
+      { id: 'short-b', startFrame: 1, durationInFrames: 3 },
+    ]);
+    expect(schedule.every((entry) => entry.startFrame >= 0)).toBe(true);
+    expect(schedule[1]!.startFrame).toBeGreaterThan(schedule[0]!.startFrame);
+
+    const meta = await calculateMapVideoMetadata({ props: shortPlan } as never);
+    expect(meta.durationInFrames).toBe(4);
+    expect(calculatePlanDurationSeconds(shortPlan)).toBeCloseTo(4 / MAP_VIDEO_FPS);
+  });
+
   it('is deterministic for the same plan', () => {
     expect(calculatePlanDurationSeconds(plan)).toBe(calculatePlanDurationSeconds(plan));
     expect(buildSceneSchedule(plan)).toEqual(buildSceneSchedule(plan));
