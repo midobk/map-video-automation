@@ -13,8 +13,8 @@ render_twice() {
   local out1="$OUT_DIR/${name}-1.png"
   local out2="$OUT_DIR/${name}-2.png"
 
-  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out1" "$frame" >/dev/null 2>&1
-  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out2" "$frame" >/dev/null 2>&1
+  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out1" --frame="$frame" >/dev/null 2>&1
+  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out2" --frame="$frame" >/dev/null 2>&1
 
   local h1 h2
   h1=$(shasum -a 256 "$out1" | cut -d' ' -f1)
@@ -38,4 +38,4 @@ render_twice map-video-rtl 0 rtl-frame-0
 render_twice map-video-rtl 128 rtl-frame-mid
 render_twice map-video-rtl 254 rtl-frame-last
 
-echo "=== All frames are deterministic ==="
+echo "=== All requested frames are deterministic ==="
