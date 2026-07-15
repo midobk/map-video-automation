@@ -2,8 +2,8 @@
 
 ## Responsibility
 
-Render optional multi-language captions inside a safe area with automatic
-line-splitting and RTL layout.
+Render optional multilingual captions inside the 1080×1920 safe area with
+deterministic line splitting, timing, and text direction.
 
 ## Languages supported
 
@@ -11,18 +11,28 @@ line-splitting and RTL layout.
 - `fr` — LTR
 - `ar` — RTL
 
-## Layout
+Each map-video scene may set:
 
-`CaptionLayout` converts scene dimensions into a padded safe box using
-`CAPTION_SAFE_AREA_PERCENTAGE` and optional explicit margins.
+```ts
+captionLanguage?: 'en' | 'fr' | 'ar';
+```
 
-## Splitting
+Omitted values remain backward-compatible and resolve to English. Arabic plans
+must explicitly use `ar`; the RTL fixture pins this behavior in tests.
 
-`splitCaptionLines` breaks caption text into lines that fit `maxWidth` using the
-`remotion-measure` package with the configured font. It supports explicit
-`\n` newlines and wraps overflowing words at safe-area edges.
+## Timing
 
-## Renderer
+`resolveSceneCaptionPresentation()` derives the caption window from the scene's
+validated `durationSeconds` and the fixed map-video FPS. Scene renderers do not
+use hidden four-second constants, and a caption remains active for its complete
+scene-local sequence.
 
-`CaptionRenderer` applies `direction: rtl` for `ar` and positions each line in
-the safe box. It is used by the `caption` scene.
+## Splitting and direction
+
+`splitCaptionText()` wraps on word boundaries according to the selected language
+budget. `captionDirection()` maps Arabic to `rtl` and English/French to `ltr`.
+`CaptionStrip` applies the resolved `dir`, alignment, line splitting, safe-area
+position, and fade envelope.
+
+The full-frame `caption` scene uses the same language metadata for its text
+direction and alignment.
