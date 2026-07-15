@@ -34,7 +34,9 @@ length, and a list of scenes. Each scene is a discriminated union by `kind`:
 - `caption`
 - `outro`
 
-Every plan is validated by `mapVideoPlanSchema` before rendering.
+Every scene has a positive duration and may carry an optional caption plus an
+explicit `captionLanguage`. Every plan is validated by `mapVideoPlanSchema`
+before rendering.
 
 ## Scene registry
 
@@ -45,6 +47,12 @@ registry entry.
 
 ## Metadata-driven timing
 
-Total duration is the sum of scene durations minus the transition overlap
-budget. `calculateMapVideoMetadata` and `buildSceneSchedule` compute frame counts
-and start frames from the validated plan; no hidden timeline constants exist.
+`buildSceneSchedule()` converts scene durations and the requested transition to
+frames. At every boundary, overlap is bounded by both adjacent scene lengths and
+at least one non-overlapped frame is preserved per scene. Therefore a short but
+valid scene cannot move the scheduling cursor backward or create a negative
+start frame.
+
+`calculateMapVideoMetadata()` derives total duration from the final bounded
+schedule rather than using a separate formula, keeping Remotion metadata and
+`<Sequence>` placement identical.
