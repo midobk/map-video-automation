@@ -32,8 +32,16 @@ describe('deterministic fixtures', () => {
     expect(serialized).not.toContain('e30613');
   });
 
-  it('RTL fixture uses Arabic text', () => {
+  it('RTL fixture uses Arabic text and caption metadata', () => {
     expect(rtlMapVideoFixture.scenes[0]?.kind).toBe('title');
     expect((rtlMapVideoFixture.scenes[0] as { title: string }).title).toContain('خريطة');
+    expect(rtlMapVideoFixture.scenes.every((scene) => scene.captionLanguage === 'ar')).toBe(
+      true,
+    );
+    expect(
+      rtlMapVideoFixture.scenes
+        .filter((scene) => scene.caption !== undefined)
+        .every((scene) => scene.captionLanguage === 'ar'),
+    ).toBe(true);
   });
 });
