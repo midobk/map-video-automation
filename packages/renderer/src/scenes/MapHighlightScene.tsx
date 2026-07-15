@@ -1,9 +1,10 @@
-import { Img, staticFile, useVideoConfig } from 'remotion';
+import { Img, staticFile } from 'remotion';
 import { resolveFontFamily } from '../assets/fonts';
 import { CaptionStrip } from '../captions/renderer';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
+import { resolveSceneCaptionPresentation } from './caption-presentation';
 
 /**
  * Map highlight scene. Displays a static map asset and highlights the named
@@ -12,9 +13,9 @@ import { assertSceneKind } from './assert-kind';
  */
 export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
   assertSceneKind(scene, 'map-highlight');
-  const { durationInFrames } = useVideoConfig();
   const headingFamily = resolveFontFamily(theme.typography.headingFamily);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
+  const captionPresentation = resolveSceneCaptionPresentation(scene);
 
   return (
     <SceneShell theme={theme}>
@@ -89,9 +90,9 @@ export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
         <CaptionStrip
           text={scene.caption}
           theme={theme}
-          startFrame={0}
-          endFrame={durationInFrames}
-          language="en"
+          startFrame={captionPresentation.startFrame}
+          endFrame={captionPresentation.endFrame}
+          language={captionPresentation.language}
         />
       )}
     </SceneShell>
