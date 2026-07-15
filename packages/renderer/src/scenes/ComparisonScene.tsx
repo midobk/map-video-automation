@@ -4,6 +4,7 @@ import { CaptionStrip } from '../captions/renderer';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
+import { resolveSceneCaptionPresentation } from './caption-presentation';
 
 /**
  * Comparison scene. Shows two items side by side (or stacked on narrow 9:16).
@@ -15,6 +16,7 @@ export const ComparisonScene: React.FC<SceneProps> = ({ scene, theme }) => {
   const rightReveal = useReveal(26, { lift: 24 });
   const headingFamily = resolveFontFamily(theme.typography.headingFamily);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
+  const captionPresentation = resolveSceneCaptionPresentation(scene);
 
   const cardStyle: React.CSSProperties = {
     flex: 1,
@@ -131,9 +133,9 @@ export const ComparisonScene: React.FC<SceneProps> = ({ scene, theme }) => {
         <CaptionStrip
           text={scene.caption}
           theme={theme}
-          startFrame={0}
-          endFrame={120}
-          language="en"
+          startFrame={captionPresentation.startFrame}
+          endFrame={captionPresentation.endFrame}
+          language={captionPresentation.language}
         />
       )}
     </SceneShell>
