@@ -15,6 +15,11 @@ describe('vector geography', () => {
     expect(findFeaturesByIsoCodes(['MAR', 'CAN'])).toHaveLength(2);
   });
 
+  it('does not expose package placeholder codes as ISO geography', () => {
+    expect(isKnownIso3('UNK')).toBe(false);
+    expect(resolveCountryName('UNK')).toBeUndefined();
+  });
+
   it('centers an orthographic focus on the visible hemisphere', () => {
     const focus = featureCollectionFromIsoCodes(['CAN']);
     const state = fitProjectionState('orthographic', [920, 960], focus, {
