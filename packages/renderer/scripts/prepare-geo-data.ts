@@ -94,7 +94,7 @@ export type GeoDataset = typeof GEO_DATASET;
 `;
 }
 
-const expectedDictionary = `${JSON.stringify(buildDictionary(), null, 2)}\n`;
+const expectedDictionary = JSON.stringify(buildDictionary(), null, 2);
 const expectedManifest = buildManifestSource();
 const checkOnly = process.argv.includes('--check');
 
