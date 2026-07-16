@@ -282,9 +282,7 @@ export async function generatePreview(
         ? new pipeline.OpenAiResearchAdapter(environment.OPENAI_API_KEY)
         : new pipeline.MockResearchAdapter();
 
-    const factPack = await ResearchAdapter.research(item.topic_prompt, {
-      idempotencyKey: item.id,
-    });
+    const factPack = await ResearchAdapter.research(item.topic_prompt);
 
     const targetDurationSeconds = Math.min(
       90,
