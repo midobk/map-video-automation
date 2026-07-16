@@ -6,7 +6,7 @@ This report records the independent review and remediation of PR #8, the first
 vector-map rendering increment. The original branch was based on `main` before
 the renderer-stabilization PR #7 and could not be merged safely without replaying
 the feature on the stabilized runtime.
-
+ 
 ## Findings
 
 ### 1. Stale branch could regress renderer stabilization
