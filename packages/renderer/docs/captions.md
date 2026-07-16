@@ -21,6 +21,21 @@ captionLanguage?: 'en' | 'fr' | 'ar';
 Omitted values remain backward-compatible and resolve to English. Arabic plans
 must explicitly use `ar`; the RTL fixture pins this behavior in tests.
 
+## Line limit
+
+The bottom caption strip supports at most three wrapped lines. The line budget is
+a shared constant used by schema validation, layout reservation, overflow
+measurement, and defensive rendering.
+
+`mapVideoSceneSchema` rejects a `caption` that wraps beyond this limit for its
+selected language. This prevents valid plans from creating more text than the
+reserved scene-shell envelope can contain. `CaptionStrip` also caps and
+ellipsizes overflow when invoked directly outside the validated plan runtime, so
+a bypassing caller cannot cover normal scene content.
+
+The full-frame `caption` scene uses its separate `text` field and is not subject
+to the bottom-strip line limit.
+
 ## Timing
 
 `resolveSceneCaptionPresentation()` derives the caption window from the scene's
@@ -39,7 +54,7 @@ envelope can fit in those windows.
 `splitCaptionText()` wraps on word boundaries according to the selected language
 budget. `captionDirection()` maps Arabic to `rtl` and English/French to `ltr`.
 `CaptionStrip` applies the resolved `dir`, alignment, line splitting, safe-area
-position, and duration-aware fade envelope.
+position, line cap, and duration-aware fade envelope.
 
 Captioned scenes reserve the strip's maximum vertical envelope in `SceneShell`,
 preventing map chips, cards, and other normal content from rendering beneath it.
