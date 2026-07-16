@@ -2,9 +2,66 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { feature } from 'topojson-client';
+import worldAtlas from 'world-atlas/countries-110m.json';
+import worldCountries from 'world-countries';
+import type { FeatureCollection, Geometry } from 'geojson';
 
 const rendererRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const dictionaryPath = path.join(rendererRoot, 'src/geo/country-dictionary.json');
 const manifestPath = path.join(rendererRoot, 'src/geo/dataset-manifest.ts');
+
+interface CountryRecord {
+  iso3: string;
+  canonicalName: string;
+  aliases: string[];
+}
+
+const isoOverrides: Record<string, string> = {
+  'Bosnia and Herz.': 'BIH',
+  'Central African Rep.': 'CAF',
+  Congo: 'COG',
+  "Côte d'Ivoire": 'CIV',
+  'Dem. Rep. Congo': 'COD',
+  'Dominican Rep.': 'DOM',
+  'Eq. Guinea': 'GNQ',
+  'Falkland Is.': 'FLK',
+  'Fr. S. Antarctic Lands': 'ATF',
+  Macedonia: 'MKD',
+  'S. Sudan': 'SSD',
+  'Solomon Is.': 'SLB',
+  Turkey: 'TUR',
+  'United States of America': 'USA',
+  'W. Sahara': 'ESH',
+};
+
+const excludedNames = new Set(['N. Cyprus', 'Somaliland']);
+
+function buildDictionary(): CountryRecord[] {
+  const lookup = new Map<string, string>();
+  for (const country of worldCountries) {
+    const keys = [country.name.common, country.name.official, ...country.altSpellings];
+    for (const key of keys) {
+      const normalized = key.toLowerCase();
+      if (!lookup.has(normalized)) lookup.set(normalized, country.cca3);
+    }
+  }
+
+  const countries = feature(
+    worldAtlas,
+    worldAtlas.objects.countries,
+  ) as FeatureCollection<Geometry>;
+
+  const records = countries.features.flatMap<CountryRecord>((country) => {
+    const name = typeof country.properties?.name === 'string' ? country.properties.name : '';
+    if (!name || excludedNames.has(name)) return [];
+    const iso3 = isoOverrides[name] ?? lookup.get(name.toLowerCase());
+    if (!iso3) throw new Error(`No ISO3 match for pinned world-atlas feature "${name}".`);
+    return [{ iso3, canonicalName: name, aliases: [] }];
+  });
+
+  return records.sort((left, right) => left.canonicalName.localeCompare(right.canonicalName));
+}
 
 function packageFilePath(specifier: string): string {
   return fileURLToPath(import.meta.resolve(specifier));
@@ -37,18 +94,20 @@ export type GeoDataset = typeof GEO_DATASET;
 `;
 }
 
-const expected = buildManifestSource();
+const expectedDictionary = `${JSON.stringify(buildDictionary(), null, 2)}\n`;
+const expectedManifest = buildManifestSource();
 const checkOnly = process.argv.includes('--check');
 
 if (checkOnly) {
-  const current = readFileSync(manifestPath, 'utf8');
-  if (current !== expected) {
-    throw new Error(
-      'Geographic dataset manifest is stale. Run `pnpm geo:prepare` and commit the result.',
-    );
+  const dictionaryCurrent = readFileSync(dictionaryPath, 'utf8');
+  const manifestCurrent = readFileSync(manifestPath, 'utf8');
+  if (dictionaryCurrent !== expectedDictionary || manifestCurrent !== expectedManifest) {
+    throw new Error('Geographic generated files are stale. Run `pnpm geo:prepare` and commit them.');
   }
-  console.log('Geographic dataset manifest is deterministic and current.');
+  console.log('Geographic dictionary and manifest are deterministic and current.');
 } else {
-  writeFileSync(manifestPath, expected);
+  writeFileSync(dictionaryPath, expectedDictionary);
+  writeFileSync(manifestPath, expectedManifest);
+  console.log(`Wrote ${path.relative(process.cwd(), dictionaryPath)}`);
   console.log(`Wrote ${path.relative(process.cwd(), manifestPath)}`);
 }
