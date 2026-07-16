@@ -2,7 +2,12 @@ import React, { useMemo } from 'react';
 import { geoPath } from 'd3-geo';
 import type { Feature, Geometry } from 'geojson';
 import type { VideoTheme } from '../themes/theme-schema';
-import { createProjection, fitProjectionState, interpolateProjectionState } from './projections';
+import {
+  createProjection,
+  fitProjectionState,
+  interpolateProjectionState,
+  isPointVisibleOnProjection,
+} from './projections';
 import {
   allCountries,
   countryIso3ForFeature,
@@ -86,17 +91,24 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
     [pathGenerator],
   );
 
-  const labelPositions = useMemo(
-    () =>
-      labels.flatMap((label, index) => {
-        const projected = currentProjection([label.longitude, label.latitude]);
-        if (!projected) return [];
-        const [x, y] = projected;
-        if (x < -50 || x > width + 50 || y < -50 || y > height + 50) return [];
-        return [{ ...label, x, y, key: `${label.text}:${label.longitude}:${label.latitude}:${index}` }];
-      }),
-    [currentProjection, height, labels, width],
-  );
+  const labelPositions = useMemo(() => {
+    const projectionRotation = currentProjection.rotate();
+    const rotation: [number, number] = [
+      projectionRotation[0] ?? 0,
+      projectionRotation[1] ?? 0,
+    ];
+
+    return labels.flatMap((label, index) => {
+      const point: [number, number] = [label.longitude, label.latitude];
+      if (!isPointVisibleOnProjection(projectionName, rotation, point)) return [];
+
+      const projected = currentProjection(point);
+      if (!projected) return [];
+      const [x, y] = projected;
+      if (x < -50 || x > width + 50 || y < -50 || y > height + 50) return [];
+      return [{ ...label, x, y, key: `${label.text}:${label.longitude}:${label.latitude}:${index}` }];
+    });
+  }, [currentProjection, height, labels, projectionName, width]);
 
   return (
     <svg
