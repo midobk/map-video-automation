@@ -36,8 +36,9 @@ ignored during topology lookup, and label coordinates were not bounded.
 
 **Resolution:** map plans now require known uppercase ISO 3166-1 alpha-3 codes,
 reject duplicate country codes, and constrain longitude to -180..180 and latitude
-to -90..90. Topology matching uses world-atlas numeric country IDs rather than
-fragile display-name equality.
+to -90..90. The committed ISO dictionary is generated directly from the pinned
+world-atlas feature names, checked deterministically, and topology lookup throws
+instead of silently dropping a validated country.
 
 ### 4. Geo manifest generation was non-deterministic
 
@@ -45,8 +46,8 @@ The original generated manifest embedded the current timestamp, changing a
 committed file on every run.
 
 **Resolution:** the manifest contains only stable package metadata and SHA-256
-checksums. `pnpm geo:check` recomputes the expected source and fails CI if the
-committed manifest is stale.
+checksums. `pnpm geo:check` regenerates both the dictionary and manifest in memory
+and fails when either committed file is stale.
 
 ### 5. Orthographic focus could remain on the hidden hemisphere
 
@@ -71,6 +72,6 @@ visual-regression checks.
 ## Merge gate
 
 PR #8 may merge only after the current head passes frozen install, lint,
-typecheck, tests, build, deterministic geo-manifest verification, Gitleaks,
+typecheck, tests, build, deterministic geo-data verification, Gitleaks,
 clean Supabase reset, all five fixture renders, MP4 probing, selected-frame
 regression, Vercel, and a final independent review with no unresolved findings.
