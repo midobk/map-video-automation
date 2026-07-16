@@ -68,9 +68,19 @@ create table if not exists public.content_revisions (
   unique (content_item_id, revision_number)
 );
 
-alter table public.content_items
-  add constraint if not exists content_items_current_revision_fk
-  foreign key (current_revision_id) references public.content_revisions(id) on delete set null;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'content_items_current_revision_fk'
+    and conrelid = 'public.content_items'::regclass
+  ) then
+    alter table public.content_items
+      add constraint content_items_current_revision_fk
+      foreign key (current_revision_id) references public.content_revisions(id) on delete set null;
+  end if;
+end
+$$;
 
 create table if not exists public.workflow_runs (
   id uuid primary key default gen_random_uuid(),
