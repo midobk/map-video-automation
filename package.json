@@ -26,7 +26,8 @@
     "remotion:render:rtl-fixture": "pnpm --filter @mapvideo/remotion-studio exec remotion render map-video-rtl out/map-video-rtl/map-video-rtl.mp4",
     "visual-regression": "bash scripts/visual-regression.sh",
     "sfx:generate": "node scripts/media/generate-sfx.mjs",
-    "voiceover:generate": "node --import tsx scripts/media/generate-voiceover.mjs"
+    "voiceover:generate": "node --import tsx scripts/media/generate-voiceover.mjs",
+    "generate:map-video-narration": "node --import tsx packages/renderer/scripts/generate-map-video-narration.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -41,6 +42,9 @@
     "vitest": "4.1.10"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
   }
 }

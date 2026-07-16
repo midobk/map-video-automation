@@ -1,6 +1,7 @@
 export {
   mapVideoPlanSchema,
   mapVideoSceneSchema,
+  narrationConfigSchema,
   titleSceneSchema,
   mapHighlightSceneSchema,
   rankingSceneSchema,
@@ -14,6 +15,7 @@ export {
   type MapVideoPlan,
   type MapVideoScene,
   type MapVideoSceneKind,
+  type NarrationConfig,
 } from './map-video-schema';
 export {
   calculateMapVideoMetadata,

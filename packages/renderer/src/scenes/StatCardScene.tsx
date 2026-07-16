@@ -1,6 +1,5 @@
 import { useReveal } from '../animation/anim';
 import { resolveFontFamily } from '../assets/fonts';
-import { CaptionStrip } from '../captions/renderer';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
@@ -8,6 +7,9 @@ import { assertSceneKind } from './assert-kind';
 /**
  * Stat-card scene. Displays a single large metric with a headline and optional
  * subtext, centered in the 9:16 safe area.
+ *
+ * Captions are rendered centrally by MapVideoComposition from the plan's
+ * narration caption track.
  */
 export const StatCardScene: React.FC<SceneProps> = ({ scene, theme }) => {
   assertSceneKind(scene, 'stat-card');
@@ -76,15 +78,6 @@ export const StatCardScene: React.FC<SceneProps> = ({ scene, theme }) => {
           </div>
         )}
       </div>
-      {scene.caption && (
-        <CaptionStrip
-          text={scene.caption}
-          theme={theme}
-          startFrame={0}
-          endFrame={120}
-          language="en"
-        />
-      )}
     </SceneShell>
   );
 };

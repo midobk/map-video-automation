@@ -4,7 +4,12 @@ import {
   measureCaptionLines,
   captionDirection,
   captionAvailableWidth,
+  alignSceneVoiceover,
+  alignCaptionsFromPlan,
+  secondsToFrames,
+  framesToSeconds,
 } from '../src';
+import { neutralMapVideoFixture } from '../src';
 
 describe('caption splitting', () => {
   it('keeps a short sentence on one line', () => {
@@ -65,5 +70,52 @@ describe('caption overflow detection', () => {
 
   it('exposes a positive available width', () => {
     expect(captionAvailableWidth()).toBeGreaterThan(0);
+  });
+});
+
+describe('caption alignment', () => {
+  it('distributes a scene voiceover across its frame window', () => {
+    const lines = alignSceneVoiceover(
+      {
+        id: 's1',
+        kind: 'title',
+        durationSeconds: 2,
+        title: 'T',
+        voiceoverText: 'one two three four five six seven eight',
+      },
+      'en',
+      0,
+      60,
+    );
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines[0]!.startFrame).toBe(0);
+    expect(lines[lines.length - 1]!.endFrame).toBe(60);
+    expect(lines.every((line) => line.endFrame > line.startFrame)).toBe(true);
+  });
+
+  it('returns no lines when a scene has no voiceover text', () => {
+    const lines = alignSceneVoiceover(
+      { id: 's1', kind: 'title', durationSeconds: 2, title: 'T' },
+      'en',
+      0,
+      60,
+    );
+    expect(lines).toEqual([]);
+  });
+
+  it('aligns captions for a full fixture plan', () => {
+    const track = alignCaptionsFromPlan(neutralMapVideoFixture);
+    expect(track.language).toBe('en');
+    expect(track.lines.length).toBeGreaterThan(0);
+    expect(track.lines[0]!.startFrame).toBe(0);
+    expect(track.lines.every((line) => line.endFrame > line.startFrame)).toBe(true);
+  });
+
+  it('converts seconds to frames at 30 FPS', () => {
+    expect(secondsToFrames(2)).toBe(60);
+  });
+
+  it('converts frames to seconds at 30 FPS', () => {
+    expect(framesToSeconds(60)).toBe(2);
   });
 });

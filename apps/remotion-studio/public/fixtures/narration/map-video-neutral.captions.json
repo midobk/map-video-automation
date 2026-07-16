@@ -1,0 +1,50 @@
+{
+  "language": "en",
+  "lines": [
+    {
+      "text": "Our world. Five continents",
+      "startFrame": 0,
+      "endFrame": 37
+    },
+    {
+      "text": "and one shared ocean.",
+      "startFrame": 37,
+      "endFrame": 75
+    },
+    {
+      "text": "The continents cover about",
+      "startFrame": 60,
+      "endFrame": 90
+    },
+    {
+      "text": "twenty-nine percent of Earth",
+      "startFrame": 90,
+      "endFrame": 120
+    },
+    {
+      "text": "surface.",
+      "startFrame": 120,
+      "endFrame": 150
+    },
+    {
+      "text": "Oceans dominate the planet,",
+      "startFrame": 135,
+      "endFrame": 172
+    },
+    {
+      "text": "covering seventy-one percent.",
+      "startFrame": 172,
+      "endFrame": 210
+    },
+    {
+      "text": "Explore more neutral geography,",
+      "startFrame": 195,
+      "endFrame": 225
+    },
+    {
+      "text": "rendered deterministically.",
+      "startFrame": 225,
+      "endFrame": 255
+    }
+  ]
+}

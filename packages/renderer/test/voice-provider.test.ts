@@ -5,6 +5,7 @@ import {
   parseVoiceoverManifest,
   hashVoiceoverText,
   estimateWavDurationSeconds,
+  concatenateWavBuffers,
 } from '../src';
 
 describe('MockVoiceProvider', () => {
@@ -72,5 +73,25 @@ describe('voiceover manifest', () => {
   it('hashes text deterministically', () => {
     expect(hashVoiceoverText('same')).toBe(hashVoiceoverText('same'));
     expect(hashVoiceoverText('a')).not.toBe(hashVoiceoverText('b'));
+  });
+});
+
+describe('WAV concatenation', () => {
+  it('returns a valid empty WAV for no buffers', () => {
+    const result = concatenateWavBuffers([]);
+    expect(result.byteLength).toBe(44);
+    expect(estimateWavDurationSeconds(result)).toBe(0);
+  });
+
+  it('concatenates two mock voiceover buffers', async () => {
+    const provider = new MockVoiceProvider();
+    const a = await provider.synthesize({ text: 'Hello' });
+    const b = await provider.synthesize({ text: 'World' });
+    const combined = concatenateWavBuffers([a.audioBuffer, b.audioBuffer]);
+    expect(combined.byteLength).toBe(a.audioBuffer.byteLength + b.audioBuffer.byteLength - 44);
+    expect(estimateWavDurationSeconds(combined)).toBeCloseTo(
+      estimateWavDurationSeconds(a.audioBuffer) + estimateWavDurationSeconds(b.audioBuffer),
+      1,
+    );
   });
 });

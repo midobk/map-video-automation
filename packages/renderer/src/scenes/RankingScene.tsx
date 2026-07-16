@@ -1,6 +1,5 @@
 import { useReveal } from '../animation/anim';
 import { resolveFontFamily } from '../assets/fonts';
-import { CaptionStrip } from '../captions/renderer';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
@@ -9,6 +8,9 @@ import { assertSceneKind } from './assert-kind';
  * Ranking scene. Shows up to seven ranked items with labels and values.
  * Items are rendered in the order given; sort them before rendering if a
  * particular order is required.
+ *
+ * Captions are rendered centrally by MapVideoComposition from the plan's
+ * narration caption track.
  */
 export const RankingScene: React.FC<SceneProps> = ({ scene, theme }) => {
   assertSceneKind(scene, 'ranking');
@@ -89,15 +91,6 @@ export const RankingScene: React.FC<SceneProps> = ({ scene, theme }) => {
           })}
         </div>
       </div>
-      {scene.caption && (
-        <CaptionStrip
-          text={scene.caption}
-          theme={theme}
-          startFrame={0}
-          endFrame={120}
-          language="en"
-        />
-      )}
     </SceneShell>
   );
 };

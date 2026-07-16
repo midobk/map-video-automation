@@ -1,12 +1,14 @@
 import { useReveal } from '../animation/anim';
 import { resolveFontFamily } from '../assets/fonts';
-import { CaptionStrip } from '../captions/renderer';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
 
 /**
  * Outro scene. A calm closing card with a heading and optional subtitle.
+ *
+ * Captions are rendered centrally by MapVideoComposition from the plan's
+ * narration caption track.
  */
 export const OutroScene: React.FC<SceneProps> = ({ scene, theme }) => {
   assertSceneKind(scene, 'outro');
@@ -57,15 +59,6 @@ export const OutroScene: React.FC<SceneProps> = ({ scene, theme }) => {
           </p>
         )}
       </div>
-      {scene.caption && (
-        <CaptionStrip
-          text={scene.caption}
-          theme={theme}
-          startFrame={0}
-          endFrame={120}
-          language="en"
-        />
-      )}
     </SceneShell>
   );
 };

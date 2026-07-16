@@ -1,6 +1,7 @@
 import { mapVideoPlanSchema } from '../compositions/map-video/map-video-schema';
 import { neutralDarkTheme } from '../themes/examples';
 import type { MapVideoPlan } from '../compositions/map-video/map-video-schema';
+import { generatedNarration } from './generated/map-video-ranking-narration';
 
 export const rankingFixtureName = 'map-video-ranking' as const;
 
@@ -14,6 +15,7 @@ export const rankingFixture: MapVideoPlan = mapVideoPlanSchema.parse({
   theme: neutralDarkTheme,
   projectId: 'ranking',
   transitionSeconds: 0.5,
+  narration: generatedNarration,
   scenes: [
     {
       id: 'rank-intro',
@@ -22,6 +24,7 @@ export const rankingFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       title: 'Largest Continents',
       subtitle: 'By land area, in millions of square kilometres',
       eyebrow: 'Ranking Fixture',
+      voiceoverText: 'Largest continents by land area, in millions of square kilometres.',
     },
     {
       id: 'continents-ranking',
@@ -38,7 +41,8 @@ export const rankingFixture: MapVideoPlan = mapVideoPlanSchema.parse({
         { label: 'Europe', value: '10.2' },
         { label: 'Oceania', value: '8.5' },
       ],
-      caption: 'Stable, public-domain geographic data.',
+      voiceoverText:
+        'Asia leads, followed by Africa, North America, South America, Antarctica, Europe, and Oceania.',
     },
     {
       id: 'rank-outro',
@@ -46,6 +50,7 @@ export const rankingFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       durationSeconds: 2,
       title: 'Explore More',
       subtitle: 'Neutral geography, rendered deterministically',
+      voiceoverText: 'Explore more neutral geography, rendered deterministically.',
     },
   ],
 });

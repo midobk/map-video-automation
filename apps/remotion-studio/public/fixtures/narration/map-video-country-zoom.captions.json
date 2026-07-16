@@ -1,0 +1,80 @@
+{
+  "language": "en",
+  "lines": [
+    {
+      "text": "Country zoom. Four neutral",
+      "startFrame": 0,
+      "endFrame": 20
+    },
+    {
+      "text": "locations, rendered from vector",
+      "startFrame": 20,
+      "endFrame": 40
+    },
+    {
+      "text": "data.",
+      "startFrame": 40,
+      "endFrame": 60
+    },
+    {
+      "text": "Morocco, a kingdom on",
+      "startFrame": 45,
+      "endFrame": 70
+    },
+    {
+      "text": "the northwest coast of",
+      "startFrame": 70,
+      "endFrame": 95
+    },
+    {
+      "text": "Africa.",
+      "startFrame": 95,
+      "endFrame": 120
+    },
+    {
+      "text": "Canada, a multipart country",
+      "startFrame": 105,
+      "endFrame": 142
+    },
+    {
+      "text": "spanning a continent.",
+      "startFrame": 142,
+      "endFrame": 180
+    },
+    {
+      "text": "Algeria, the largest country",
+      "startFrame": 165,
+      "endFrame": 190
+    },
+    {
+      "text": "in Africa by land",
+      "startFrame": 190,
+      "endFrame": 215
+    },
+    {
+      "text": "area.",
+      "startFrame": 215,
+      "endFrame": 240
+    },
+    {
+      "text": "France, a multipart country",
+      "startFrame": 225,
+      "endFrame": 262
+    },
+    {
+      "text": "across several continents.",
+      "startFrame": 262,
+      "endFrame": 300
+    },
+    {
+      "text": "Explore more neutral geography,",
+      "startFrame": 285,
+      "endFrame": 315
+    },
+    {
+      "text": "rendered deterministically.",
+      "startFrame": 315,
+      "endFrame": 345
+    }
+  ]
+}

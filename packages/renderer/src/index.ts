@@ -73,6 +73,7 @@ export {
   ElevenLabsVoiceAdapter,
   encodeWav,
   estimateWavDurationSeconds,
+  concatenateWavBuffers,
   type VoiceProvider,
   type VoiceRequest,
   type VoiceResult,
@@ -128,15 +129,21 @@ export {
   captionLanguageSchema,
   captionLineSchema,
   captionTimingSchema,
+  captionTrackSchema,
   splitCaptionText,
   measureCaptionLines,
   captionAvailableWidth,
+  alignCaptionsFromPlan,
+  alignSceneVoiceover,
+  secondsToFrames,
+  framesToSeconds,
   CAPTION_SAFE_AREA,
   CAPTION_LAYOUT,
   type CaptionLanguage,
   type CaptionDirection,
   type CaptionLine,
   type CaptionTiming,
+  type CaptionTrack,
 } from './captions';
 export { CaptionStrip, type CaptionStripProps } from './captions';
 
@@ -168,6 +175,7 @@ export {
 export {
   mapVideoPlanSchema,
   mapVideoSceneSchema,
+  narrationConfigSchema,
   titleSceneSchema,
   mapHighlightSceneSchema,
   rankingSceneSchema,
@@ -189,9 +197,12 @@ export {
   type MapVideoPlan,
   type MapVideoScene,
   type MapVideoSceneKind,
+  type NarrationConfig,
 } from './compositions/map-video';
 
 // Deterministic fixtures.
 export { starterFixtureProps } from './fixtures';
 export { neutralMapVideoFixture, neutralMapVideoFixtureName } from './fixtures/map-video-neutral';
 export { rtlMapVideoFixture, rtlMapVideoFixtureName } from './fixtures/map-video-rtl';
+export { countryZoomFixture, countryZoomFixtureName } from './fixtures/map-video-country-zoom';
+export { rankingFixture, rankingFixtureName } from './fixtures/map-video-ranking';

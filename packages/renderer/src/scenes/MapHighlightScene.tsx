@@ -1,6 +1,5 @@
-import { Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { Img, interpolate, staticFile, useCurrentFrame } from 'remotion';
 import { resolveFontFamily } from '../assets/fonts';
-import { CaptionStrip } from '../captions/renderer';
 import { MapCanvas } from '../geo/MapCanvas';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
@@ -12,6 +11,9 @@ import { assertSceneKind } from './assert-kind';
  * By default renders a deterministic D3 Geo vector map from Natural Earth data.
  * If a legacy `mapAsset` path is provided and no vector focus is configured,
  * it falls back to the static image so older plans keep rendering.
+ *
+ * Captions are rendered centrally by MapVideoComposition from the plan's
+ * narration caption track.
  */
 export const MapHighlightScene: React.FC<SceneProps> = ({
   scene,
@@ -20,7 +22,6 @@ export const MapHighlightScene: React.FC<SceneProps> = ({
   durationInFrames,
 }) => {
   assertSceneKind(scene, 'map-highlight');
-  const { durationInFrames: compositionDuration } = useVideoConfig();
   const frame = useCurrentFrame();
   const headingFamily = resolveFontFamily(theme.typography.headingFamily);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
@@ -122,15 +123,6 @@ export const MapHighlightScene: React.FC<SceneProps> = ({
           ))}
         </div>
       </div>
-      {scene.caption && (
-        <CaptionStrip
-          text={scene.caption}
-          theme={theme}
-          startFrame={0}
-          endFrame={compositionDuration}
-          language="en"
-        />
-      )}
     </SceneShell>
   );
 };

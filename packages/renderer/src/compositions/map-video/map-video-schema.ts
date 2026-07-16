@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { captionLanguageSchema, captionTrackSchema } from '../../captions/types';
 import { videoThemeSchema } from '../../themes/theme-schema';
 
 /** Fixed geometry for all map-video compositions. */
@@ -10,7 +11,7 @@ export const MAP_VIDEO_HEIGHT = 1920;
 const baseSceneSchema = z.object({
   id: z.string().min(1).max(64),
   durationSeconds: z.number().finite().positive().max(120),
-  caption: z.string().max(300).optional(),
+  /** Text spoken by the narration voice. Also used as the source for timed captions. */
   voiceoverText: z.string().max(800).optional(),
 });
 
@@ -94,11 +95,25 @@ export const mapVideoSceneSchema = z.discriminatedUnion('kind', [
   outroSceneSchema,
 ]);
 
+export const narrationConfigSchema = z.object({
+  provider: z.enum(['mock', 'elevenlabs']).default('mock'),
+  voiceId: z.string().min(1).max(128).default('mock-default'),
+  model: z.string().min(1).max(128).default('mock-v1'),
+  language: captionLanguageSchema.default('en'),
+  /** Path relative to the Studio public/ folder for the generated audio asset. */
+  audioAsset: z.string().min(1).max(260).optional(),
+  /** Pre-computed caption track timed to the composition frame window. */
+  captions: captionTrackSchema.optional(),
+});
+
+export type NarrationConfig = z.infer<typeof narrationConfigSchema>;
+
 export const mapVideoPlanSchema = z.object({
   theme: videoThemeSchema,
   projectId: z.string().min(1).max(64),
   scenes: z.array(mapVideoSceneSchema).min(1).max(32),
   transitionSeconds: z.number().finite().nonnegative().max(2).default(0.5),
+  narration: narrationConfigSchema.optional(),
 });
 
 export type MapVideoPlan = z.infer<typeof mapVideoPlanSchema>;

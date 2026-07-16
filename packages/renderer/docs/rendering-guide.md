@@ -12,6 +12,24 @@ This runs `remotion studio` inside `apps/remotion-studio`, which registers the
 compositions exported by `@mapvideo/renderer`. Studio serves
 `apps/remotion-studio/public/` as the static-file root.
 
+## Generating narration and captions
+
+Map-video fixtures include a generated narration track and timed captions.
+Regenerate them after editing scene `voiceoverText` or durations:
+
+```bash
+pnpm generate:map-video-narration
+```
+
+This writes:
+
+- `apps/remotion-studio/public/fixtures/narration/*.wav` — concatenated mock-voice audio.
+- `apps/remotion-studio/public/fixtures/narration/*.captions.json` — human-readable caption tracks.
+- `packages/renderer/src/fixtures/generated/*-narration.ts` — inline caption tracks imported by the fixtures.
+
+The mock provider is deterministic and needs no API key. The generated files
+are committed so CI and Studio preview work without running the generator.
+
 ## Rendering the fixtures
 
 ```bash
@@ -21,7 +39,7 @@ pnpm remotion:render:map-video       # neutral vector-map MP4
 pnpm remotion:render:rtl-fixture     # RTL vector-map MP4
 ```
 
-New PR 1C fixtures are rendered directly through `remotion render`:
+PR 1C/1D fixtures are rendered directly through `remotion render`:
 
 ```bash
 pnpm --filter @mapvideo/remotion-studio exec remotion render map-video-country-zoom out/map-video-country-zoom/map-video-country-zoom.mp4

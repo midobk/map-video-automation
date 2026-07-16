@@ -1,6 +1,7 @@
 import { mapVideoPlanSchema } from '../compositions/map-video/map-video-schema';
 import { neutralDarkTheme } from '../themes/examples';
 import type { MapVideoPlan } from '../compositions/map-video/map-video-schema';
+import { generatedNarration } from './generated/map-video-neutral-narration';
 
 export const neutralMapVideoFixtureName = 'map-video-neutral' as const;
 
@@ -15,6 +16,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
   theme: neutralDarkTheme,
   projectId: 'neutral-map',
   transitionSeconds: 0.5,
+  narration: generatedNarration,
   scenes: [
     {
       id: 'intro',
@@ -23,6 +25,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       title: 'Our World',
       subtitle: 'Five continents and one shared ocean',
       eyebrow: 'Map Video Fixture',
+      voiceoverText: 'Our world. Five continents and one shared ocean.',
     },
     {
       id: 'continents',
@@ -41,7 +44,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
         { text: 'Antarctica', longitude: 0, latitude: -80 },
         { text: 'Oceania', longitude: 135, latitude: -25 },
       ],
-      caption: 'The continents cover about 29% of the surface.',
+      voiceoverText: 'The continents cover about twenty-nine percent of Earth surface.',
     },
     {
       id: 'comparison',
@@ -50,7 +53,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       title: 'Land and Water',
       left: { label: 'Land', value: '29%' },
       right: { label: 'Ocean', value: '71%' },
-      caption: 'Oceans dominate the planet.',
+      voiceoverText: 'Oceans dominate the planet, covering seventy-one percent.',
     },
     {
       id: 'outro',
@@ -58,6 +61,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       durationSeconds: 2,
       title: 'Explore More',
       subtitle: 'Neutral geography, rendered deterministically',
+      voiceoverText: 'Explore more neutral geography, rendered deterministically.',
     },
   ],
 });

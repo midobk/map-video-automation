@@ -9,4 +9,4 @@ export {
 } from './manifest';
 export { MockVoiceProvider } from './mock-provider';
 export { ElevenLabsVoiceAdapter } from './elevenlabs-adapter';
-export { encodeWav, estimateWavDurationSeconds } from './wav';
+export { encodeWav, estimateWavDurationSeconds, concatenateWavBuffers } from './wav';

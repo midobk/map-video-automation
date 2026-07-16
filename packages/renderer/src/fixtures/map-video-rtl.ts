@@ -1,6 +1,7 @@
 import { mapVideoPlanSchema } from '../compositions/map-video/map-video-schema';
 import { neutralDarkTheme } from '../themes/examples';
 import type { MapVideoPlan } from '../compositions/map-video/map-video-schema';
+import { generatedNarration } from './generated/map-video-rtl-narration';
 
 export const rtlMapVideoFixtureName = 'map-video-rtl' as const;
 
@@ -14,6 +15,7 @@ export const rtlMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
   theme: neutralDarkTheme,
   projectId: 'rtl-map',
   transitionSeconds: 0.5,
+  narration: generatedNarration,
   scenes: [
     {
       id: 'rtl-intro',
@@ -22,6 +24,7 @@ export const rtlMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       title: 'خريطة الفيديو',
       subtitle: 'قارات العالم والمحيطات',
       eyebrow: 'RTL Fixture',
+      voiceoverText: 'خريطة الفيديو. قارات العالم والمحيطات.',
     },
     {
       id: 'rtl-continents',
@@ -47,7 +50,7 @@ export const rtlMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
         { text: 'أنتاركتيكا', longitude: 0, latitude: -80 },
         { text: 'أوقيانوسيا', longitude: 135, latitude: -25 },
       ],
-      caption: 'تغطي القارات حوالي 29٪ من سطح الأرض.',
+      voiceoverText: 'تغطي القارات حوالي تسعة وعشرون بالمئة من سطح الأرض.',
     },
     {
       id: 'rtl-comparison',
@@ -56,7 +59,7 @@ export const rtlMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       title: 'اليابسة والماء',
       left: { label: 'اليابسة', value: '٢٩٪' },
       right: { label: 'المحيطات', value: '٧١٪' },
-      caption: 'المحيطات تهيمن على كوكب الأرض.',
+      voiceoverText: 'المحيطات تهيمن على كوكب الأرض.',
     },
     {
       id: 'rtl-outro',
@@ -64,6 +67,7 @@ export const rtlMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       durationSeconds: 2,
       title: 'استكشف المزيد',
       subtitle: 'جغرافيا محايدة، تُعرض بشكل حتمي',
+      voiceoverText: 'استكشف المزيد. جغرافيا محايدة، تُعرض بشكل حتمي.',
     },
   ],
 });

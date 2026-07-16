@@ -1,6 +1,7 @@
 import { mapVideoPlanSchema } from '../compositions/map-video/map-video-schema';
 import { neutralDarkTheme } from '../themes/examples';
 import type { MapVideoPlan } from '../compositions/map-video/map-video-schema';
+import { generatedNarration } from './generated/map-video-country-zoom-narration';
 
 export const countryZoomFixtureName = 'map-video-country-zoom' as const;
 
@@ -16,6 +17,7 @@ export const countryZoomFixture: MapVideoPlan = mapVideoPlanSchema.parse({
   theme: neutralDarkTheme,
   projectId: 'country-zoom',
   transitionSeconds: 0.5,
+  narration: generatedNarration,
   scenes: [
     {
       id: 'cz-intro',
@@ -24,6 +26,7 @@ export const countryZoomFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       title: 'Country Zoom',
       subtitle: 'Four neutral locations, rendered from vector data',
       eyebrow: 'Map Video Fixture',
+      voiceoverText: 'Country zoom. Four neutral locations, rendered from vector data.',
     },
     {
       id: 'morocco',
@@ -34,7 +37,7 @@ export const countryZoomFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       projection: 'natural-earth',
       focusIsoCodes: ['MAR'],
       labels: [{ text: 'Morocco', longitude: -7, latitude: 32 }],
-      caption: 'A kingdom on the northwest coast of Africa.',
+      voiceoverText: 'Morocco, a kingdom on the northwest coast of Africa.',
     },
     {
       id: 'canada',
@@ -45,7 +48,7 @@ export const countryZoomFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       projection: 'natural-earth',
       focusIsoCodes: ['CAN'],
       labels: [{ text: 'Canada', longitude: -95, latitude: 60 }],
-      caption: 'A multipart country spanning a continent.',
+      voiceoverText: 'Canada, a multipart country spanning a continent.',
     },
     {
       id: 'algeria',
@@ -56,7 +59,7 @@ export const countryZoomFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       projection: 'natural-earth',
       focusIsoCodes: ['DZA'],
       labels: [{ text: 'Algeria', longitude: 2, latitude: 28 }],
-      caption: 'The largest country in Africa by land area.',
+      voiceoverText: 'Algeria, the largest country in Africa by land area.',
     },
     {
       id: 'france',
@@ -67,7 +70,7 @@ export const countryZoomFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       projection: 'natural-earth',
       focusIsoCodes: ['FRA'],
       labels: [{ text: 'France', longitude: 2, latitude: 46 }],
-      caption: 'A multipart country across several continents.',
+      voiceoverText: 'France, a multipart country across several continents.',
     },
     {
       id: 'cz-outro',
@@ -75,6 +78,7 @@ export const countryZoomFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       durationSeconds: 2,
       title: 'Explore More',
       subtitle: 'Neutral geography, rendered deterministically',
+      voiceoverText: 'Explore more neutral geography, rendered deterministically.',
     },
   ],
 });

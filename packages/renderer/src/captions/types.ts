@@ -34,6 +34,20 @@ export const captionTimingSchema = z.object({
 export type CaptionTiming = z.infer<typeof captionTimingSchema>;
 
 /**
+ * Full caption track for a composition.
+ *
+ * `language` drives text direction and line-splitting. `lines` are timed in
+ * absolute composition frames so the renderer can place them without knowing
+ * the scene schedule.
+ */
+export const captionTrackSchema = z.object({
+  language: captionLanguageSchema,
+  lines: z.array(captionLineSchema),
+});
+
+export type CaptionTrack = z.infer<typeof captionTrackSchema>;
+
+/**
  * Safe-area inset for captions on a 1080×1920 vertical video.
  *
  * The caption strip is pinned to the bottom inside this padding so it never

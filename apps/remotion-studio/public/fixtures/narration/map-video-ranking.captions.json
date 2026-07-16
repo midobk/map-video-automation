@@ -1,0 +1,50 @@
+{
+  "language": "en",
+  "lines": [
+    {
+      "text": "Largest continents by land",
+      "startFrame": 0,
+      "endFrame": 20
+    },
+    {
+      "text": "area, in millions of",
+      "startFrame": 20,
+      "endFrame": 40
+    },
+    {
+      "text": "square kilometres.",
+      "startFrame": 40,
+      "endFrame": 60
+    },
+    {
+      "text": "Asia leads, followed by",
+      "startFrame": 45,
+      "endFrame": 75
+    },
+    {
+      "text": "Africa, North America, South",
+      "startFrame": 75,
+      "endFrame": 105
+    },
+    {
+      "text": "America, Antarctica, Europe, and",
+      "startFrame": 105,
+      "endFrame": 135
+    },
+    {
+      "text": "Oceania.",
+      "startFrame": 135,
+      "endFrame": 165
+    },
+    {
+      "text": "Explore more neutral geography,",
+      "startFrame": 150,
+      "endFrame": 180
+    },
+    {
+      "text": "rendered deterministically.",
+      "startFrame": 180,
+      "endFrame": 210
+    }
+  ]
+}
