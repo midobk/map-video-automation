@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   splitCaptionText,
+  splitCaptionTextForRendering,
   measureCaptionLines,
   captionDirection,
   captionAvailableWidth,
   resolveCaptionFadeEnvelope,
+  MAX_CAPTION_LINES,
 } from '../src';
 import { resolveSceneCaptionPresentation } from '../src/scenes/caption-presentation';
 
@@ -29,6 +31,16 @@ describe('caption splitting', () => {
 
   it('returns an empty array for empty text', () => {
     expect(splitCaptionText('', 'en')).toEqual([]);
+  });
+
+  it('caps defensive rendering to the reserved line count and adds an ellipsis', () => {
+    const text = Array.from({ length: 20 }, (_, index) => `word${index}`).join(' ');
+    const rawLines = splitCaptionText(text, 'en');
+    const renderedLines = splitCaptionTextForRendering(text, 'en');
+
+    expect(rawLines.length).toBeGreaterThan(MAX_CAPTION_LINES);
+    expect(renderedLines).toHaveLength(MAX_CAPTION_LINES);
+    expect(renderedLines.at(-1)).toMatch(/…$/u);
   });
 });
 
@@ -89,7 +101,11 @@ describe('caption fade envelopes', () => {
       inputRange: [0, 1, 2, 3],
       outputRange: [0, 1, 1, 0],
     });
-    expect(envelope?.inputRange.every((value, index, values) => index === 0 || value > values[index - 1]!)).toBe(true);
+    expect(
+      envelope?.inputRange.every(
+        (value, index, values) => index === 0 || value > values[index - 1]!,
+      ),
+    ).toBe(true);
   });
 
   it('disables fading when a one- or two-frame scene cannot support a valid envelope', () => {
