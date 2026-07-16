@@ -51,7 +51,7 @@ export async function renderVideoPreview(
     fps: MAP_VIDEO_FPS,
     durationInFrames,
     defaultProps: {},
-    props: {},
+    props: inputProps,
     defaultCodec: 'h264',
     defaultOutName: null,
     defaultVideoImageFormat: null,
