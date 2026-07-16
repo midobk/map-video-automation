@@ -4,6 +4,7 @@ import {
   measureCaptionLines,
   captionDirection,
   captionAvailableWidth,
+  resolveCaptionFadeEnvelope,
 } from '../src';
 import { resolveSceneCaptionPresentation } from '../src/scenes/caption-presentation';
 
@@ -71,6 +72,33 @@ describe('scene caption presentation', () => {
 
     expect(presentation.language).toBe('en');
     expect(presentation.endFrame).toBe(60);
+  });
+});
+
+describe('caption fade envelopes', () => {
+  it('uses the normal eight-frame fades for a long scene', () => {
+    expect(resolveCaptionFadeEnvelope(0, 60)).toEqual({
+      inputRange: [0, 8, 52, 60],
+      outputRange: [0, 1, 1, 0],
+    });
+  });
+
+  it('clamps fades to a strictly increasing range for a three-frame scene', () => {
+    const envelope = resolveCaptionFadeEnvelope(0, 3);
+    expect(envelope).toEqual({
+      inputRange: [0, 1, 2, 3],
+      outputRange: [0, 1, 1, 0],
+    });
+    expect(envelope?.inputRange.every((value, index, values) => index === 0 || value > values[index - 1]!)).toBe(true);
+  });
+
+  it('disables fading when a one- or two-frame scene cannot support a valid envelope', () => {
+    expect(resolveCaptionFadeEnvelope(0, 1)).toBeNull();
+    expect(resolveCaptionFadeEnvelope(0, 2)).toBeNull();
+  });
+
+  it('never creates duplicate points at the sixteen-frame boundary', () => {
+    expect(resolveCaptionFadeEnvelope(0, 16)?.inputRange).toEqual([0, 7, 9, 16]);
   });
 });
 
