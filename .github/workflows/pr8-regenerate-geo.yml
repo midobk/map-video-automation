@@ -1,0 +1,42 @@
+name: PR 8 regenerate geo data
+
+on:
+  push:
+    branches:
+      - feat/1c-vector-map-rendering
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: feat/1c-vector-map-rendering
+          fetch-depth: 0
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Regenerate deterministic geo files
+        run: pnpm geo:prepare
+      - name: Commit generated files when changed
+        run: |
+          if git diff --quiet -- packages/renderer/src/geo/country-dictionary.json packages/renderer/src/geo/dataset-manifest.ts; then
+            echo "Generated geo files are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/renderer/src/geo/country-dictionary.json packages/renderer/src/geo/dataset-manifest.ts
+          git commit -m "chore(renderer): regenerate locale-stable geo data"
+          git push origin HEAD:feat/1c-vector-map-rendering
