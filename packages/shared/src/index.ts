@@ -1,4 +1,9 @@
-export { environmentSchema, parseEnvironment, type Environment } from './environment';
+export {
+  environmentSchema,
+  parseEnvironment,
+  readServerEnvironment,
+  type Environment,
+} from './environment';
 
 export const safetyDefaults = Object.freeze({
   providerMode: 'mock',

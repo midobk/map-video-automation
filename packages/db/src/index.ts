@@ -1,2 +1,23 @@
-/** Phase 0 package boundary for the future db implementation. */
-export const packageName = '@mapvideo/db';
+export { createServerClient, hasDatabaseConfig } from './client';
+export type { Database } from './database';
+export {
+  listContentItems,
+  getContentItem,
+  getContentRevisions,
+  createContentItem,
+  updateContentStatus,
+  getDefaultProject,
+  recordAuditEvent,
+} from './repositories/content-repository';
+export type {
+  ContentItem,
+  ContentItemInsert,
+  ContentRevision,
+  ContentStatus,
+  RiskLevel,
+  JobStatus,
+  Organization,
+  Project,
+  WorkflowRun,
+  AuditEvent,
+} from './schema';

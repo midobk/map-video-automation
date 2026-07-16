@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseEnvironment } from '../src/environment';
+import { parseEnvironment, readServerEnvironment } from '../src/environment';
 
 describe('environment safety', () => {
   it('defaults to mocked providers with publishing blocked', () => {
@@ -21,5 +21,17 @@ describe('environment safety', () => {
         ALLOW_LOCAL_EXTERNAL_PUBLISHING: 'false',
       }),
     ).toThrow();
+  });
+
+  it('accepts optional Supabase configuration through the server entrypoint', () => {
+    expect(
+      readServerEnvironment({
+        SUPABASE_URL: 'http://127.0.0.1:54321',
+        SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+      }),
+    ).toMatchObject({
+      SUPABASE_URL: 'http://127.0.0.1:54321',
+      SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+    });
   });
 });

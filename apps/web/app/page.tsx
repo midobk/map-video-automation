@@ -26,6 +26,15 @@ export default function HomePage() {
           </div>
         </dl>
       </section>
+
+      <section>
+        <h2>Control panel</h2>
+        <p className="lede">
+          Open the dashboard to create video ideas, track their workflow status,
+          and approve rendered drafts.
+        </p>
+        <a href="/dashboard" className="dashboard-button">Open dashboard</a>
+      </section>
     </main>
   );
 }
