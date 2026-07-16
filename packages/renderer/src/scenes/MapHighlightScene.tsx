@@ -1,31 +1,33 @@
-import { Img, staticFile } from 'remotion';
+import { Img, staticFile, useCurrentFrame } from 'remotion';
 import { resolveFontFamily } from '../assets/fonts';
 import { CaptionStrip } from '../captions/renderer';
+import { MAP_VIDEO_FPS } from '../compositions/map-video/map-video-schema';
+import { MapCanvas } from '../geo/MapCanvas';
+import { resolveMapZoomProgress } from '../geo/zoom';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
 import { resolveSceneCaptionPresentation } from './caption-presentation';
 
-/**
- * Map highlight scene. Displays a static map asset and highlights the named
- * regions in a bullet list. The asset is resolved through Remotion's static-file
- * API so it is bundled with the composition.
- */
+/** Render a vector map, with a static-map fallback for legacy plans. */
 export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
   assertSceneKind(scene, 'map-highlight');
+  const frame = useCurrentFrame();
   const headingFamily = resolveFontFamily(theme.typography.headingFamily);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
   const captionPresentation = resolveSceneCaptionPresentation(scene);
+  const durationInFrames = Math.max(1, Math.round(scene.durationSeconds * MAP_VIDEO_FPS));
+  const hasVectorMap =
+    scene.focusIsoCodes.length > 0 ||
+    scene.contextIsoCodes.length > 0 ||
+    scene.labels.length > 0 ||
+    scene.mapAsset === undefined;
+  const zoomProgress =
+    scene.focusIsoCodes.length > 0 ? resolveMapZoomProgress(frame, durationInFrames) : 0;
 
   return (
     <SceneShell theme={theme} reserveCaptionSpace={Boolean(scene.caption)}>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-        }}
-      >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <h2
           style={{
             fontFamily: headingFamily,
@@ -38,7 +40,6 @@ export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
         >
           {scene.label}
         </h2>
-
         <div
           style={{
             flex: 1,
@@ -48,16 +49,24 @@ export const MapHighlightScene: React.FC<SceneProps> = ({ scene, theme }) => {
             minHeight: 0,
           }}
         >
-          <Img
-            src={staticFile(scene.mapAsset)}
-            style={{
-              maxWidth: '100%',
-              maxHeight: '100%',
-              objectFit: 'contain',
-            }}
-          />
+          {hasVectorMap ? (
+            <MapCanvas
+              width={920}
+              height={960}
+              theme={theme}
+              projection={scene.projection}
+              focusIsoCodes={scene.focusIsoCodes}
+              contextIsoCodes={scene.contextIsoCodes}
+              labels={scene.labels}
+              zoomProgress={zoomProgress}
+            />
+          ) : (
+            <Img
+              src={staticFile(scene.mapAsset ?? '')}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+            />
+          )}
         </div>
-
         <div
           style={{
             display: 'flex',
