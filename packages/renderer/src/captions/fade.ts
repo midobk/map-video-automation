@@ -1,8 +1,8 @@
 export const DEFAULT_CAPTION_FADE_FRAMES = 8;
 
 export interface CaptionFadeEnvelope {
-  inputRange: readonly [number, number, number, number];
-  outputRange: readonly [number, number, number, number];
+  inputRange: [number, number, number, number];
+  outputRange: [number, number, number, number];
 }
 
 /**
