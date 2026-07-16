@@ -22,5 +22,8 @@
 - Make external writes idempotent.
 - Add tests for permissions, retries, and failure cases.
 - Run `pnpm run ci` and `pnpm secrets:scan` before opening a pull request.
+- Do not merge while CI, deployment checks, or an independent review are pending.
+- After a review completes, address every valid finding and resolve every review thread before merge.
+- A green pre-review head is not merge approval; confirm the reviewed commit is still the pull-request head.
 - Stop for decisions listed in the blueprint's blocker matrix.
 - The implementing agent may not approve its own production publishing change.

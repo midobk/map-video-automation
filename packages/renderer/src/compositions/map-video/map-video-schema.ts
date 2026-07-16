@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { MAX_CAPTION_LINES, splitCaptionText } from '../../captions/split';
+import { captionLanguageSchema } from '../../captions/types';
 import { videoThemeSchema } from '../../themes/theme-schema';
 
 /** Fixed geometry for all map-video compositions. */
@@ -11,6 +13,7 @@ const baseSceneSchema = z.object({
   id: z.string().min(1).max(64),
   durationSeconds: z.number().finite().positive().max(120),
   caption: z.string().max(300).optional(),
+  captionLanguage: captionLanguageSchema.optional(),
   voiceoverText: z.string().max(800).optional(),
 });
 
@@ -67,7 +70,7 @@ export const outroSceneSchema = baseSceneSchema.extend({
   subtitle: z.string().max(200).optional(),
 });
 
-export const mapVideoSceneSchema = z.discriminatedUnion('kind', [
+const mapVideoSceneUnionSchema = z.discriminatedUnion('kind', [
   titleSceneSchema,
   mapHighlightSceneSchema,
   rankingSceneSchema,
@@ -75,6 +78,20 @@ export const mapVideoSceneSchema = z.discriminatedUnion('kind', [
   captionSceneSchema,
   outroSceneSchema,
 ]);
+
+export const mapVideoSceneSchema = mapVideoSceneUnionSchema.superRefine((scene, context) => {
+  if (scene.caption === undefined) return;
+
+  const language = scene.captionLanguage ?? 'en';
+  const lineCount = splitCaptionText(scene.caption, language).length;
+  if (lineCount > MAX_CAPTION_LINES) {
+    context.addIssue({
+      code: 'custom',
+      path: ['caption'],
+      message: `Caption wraps to ${lineCount} lines; the bottom caption strip supports at most ${MAX_CAPTION_LINES}.`,
+    });
+  }
+});
 
 export const mapVideoPlanSchema = z.object({
   theme: videoThemeSchema,

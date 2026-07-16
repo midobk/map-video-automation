@@ -15,8 +15,11 @@ import {
   ElevenLabsVoiceAdapter,
   hashVoiceoverText,
   parseVoiceoverManifest,
-  estimateWavDurationSeconds,
 } from '@mapvideo/renderer';
+import {
+  assertSafeVoiceoverPathSegment,
+  resolveVoiceoverDurationSeconds,
+} from '@mapvideo/renderer/voice/server';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '../..');
@@ -44,7 +47,13 @@ if (!project) {
   process.exit(1);
 }
 
-const NARRATION_PATH = resolve(ROOT, 'apps/remotion-studio/public', project, 'narration.json');
+const safeProject = assertSafeVoiceoverPathSegment(project, 'Project id');
+const NARRATION_PATH = resolve(
+  ROOT,
+  'apps/remotion-studio/public',
+  safeProject,
+  'narration.json',
+);
 if (!existsSync(NARRATION_PATH)) {
   console.error(
     `\nℹ No narration.json found at ${NARRATION_PATH}.\n` +
@@ -53,7 +62,7 @@ if (!existsSync(NARRATION_PATH)) {
   process.exit(0);
 }
 
-const OUT_DIR = resolve(ROOT, 'apps/remotion-studio/public', project, 'voiceover');
+const OUT_DIR = resolve(ROOT, 'apps/remotion-studio/public', safeProject, 'voiceover');
 mkdirSync(OUT_DIR, { recursive: true });
 
 let voiceProvider;
@@ -80,39 +89,40 @@ const generatedAt = new Date().toISOString();
 
 let ok = 0;
 for (const line of config.lines ?? []) {
+  const lineId = assertSafeVoiceoverPathSegment(line.id, 'Narration line id');
   const text = line.text ?? '';
   const result = await voiceProvider.synthesize({ text });
   const ext = result.format === 'mp3' ? 'mp3' : 'wav';
-  const outPath = resolve(OUT_DIR, `${line.id}.${ext}`);
+  const outPath = resolve(OUT_DIR, `${lineId}.${ext}`);
   writeFileSync(outPath, Buffer.from(result.audioBuffer));
 
-  const durationSeconds =
-    result.durationSeconds > 0
-      ? result.durationSeconds
-      : estimateWavDurationSeconds(result.audioBuffer);
+  const durationSeconds = await resolveVoiceoverDurationSeconds({
+    result,
+    outputPath: outPath,
+  });
 
   const manifest = parseVoiceoverManifest({
     textHash: hashVoiceoverText(text),
     provider,
     model: line.model ?? (provider === 'mock' ? 'mock-v1' : 'eleven_multilingual_v2'),
     voiceId: line.voiceId ?? 'default',
-    audioPath: `${project}/voiceover/${line.id}.${ext}`,
+    audioPath: `${safeProject}/voiceover/${lineId}.${ext}`,
     durationSeconds,
     generatedAt,
     providerRequestId: result.providerRequestId,
   });
 
   writeFileSync(
-    resolve(OUT_DIR, `${line.id}.manifest.json`),
+    resolve(OUT_DIR, `${lineId}.manifest.json`),
     JSON.stringify(manifest, null, 2),
   );
 
   ok++;
   console.log(
-    `  ✓ ${line.id}.${ext}  (${provider}, ${(result.audioBuffer.byteLength / 1024).toFixed(0)} KB, ${durationSeconds.toFixed(2)} s)`,
+    `  ✓ ${lineId}.${ext}  (${provider}, ${(result.audioBuffer.byteLength / 1024).toFixed(0)} KB, ${durationSeconds.toFixed(2)} s)`,
   );
 }
 
 console.log(
-  `\n✓ Generated ${ok} voiceover file(s) in apps/remotion-studio/public/${project}/voiceover/`,
+  `\n✓ Generated ${ok} voiceover file(s) in apps/remotion-studio/public/${safeProject}/voiceover/`,
 );

@@ -13,8 +13,8 @@ render_twice() {
   local out1="$OUT_DIR/${name}-1.png"
   local out2="$OUT_DIR/${name}-2.png"
 
-  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out1" "$frame" >/dev/null 2>&1
-  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out2" "$frame" >/dev/null 2>&1
+  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out1" --frame="$frame" >/dev/null 2>&1
+  pnpm --filter @mapvideo/remotion-studio exec remotion still "$id" "$out2" --frame="$frame" >/dev/null 2>&1
 
   local h1 h2
   h1=$(shasum -a 256 "$out1" | cut -d' ' -f1)
@@ -27,15 +27,35 @@ render_twice() {
   echo "OK: $name frame $frame  $h1"
 }
 
+assert_frames_differ() {
+  local first=$1
+  local second=$2
+  local label=$3
+
+  if cmp -s "$OUT_DIR/${first}-1.png" "$OUT_DIR/${second}-1.png"; then
+    echo "FAIL: $label snapshots are byte-identical; the requested frame may not have been applied"
+    return 1
+  fi
+  echo "OK: $label snapshots differ"
+}
+
 echo "=== Visual regression / determinism check ==="
 render_twice starter 0 starter-frame-0
 render_twice starter 60 starter-frame-60
 render_twice starter 179 starter-frame-179
 render_twice map-video 0 map-video-frame-0
-render_twice map-video 128 map-video-frame-mid
+render_twice map-video 128 map-video-frame-map
+render_twice map-video 165 map-video-frame-comparison
 render_twice map-video 254 map-video-frame-last
 render_twice map-video-rtl 0 rtl-frame-0
-render_twice map-video-rtl 128 rtl-frame-mid
+render_twice map-video-rtl 128 rtl-frame-map
+render_twice map-video-rtl 165 rtl-frame-comparison
 render_twice map-video-rtl 254 rtl-frame-last
 
-echo "=== All frames are deterministic ==="
+assert_frames_differ starter-frame-0 starter-frame-60 "starter frame 0 and frame 60"
+assert_frames_differ map-video-frame-0 map-video-frame-map "neutral map-video frame 0 and map frame"
+assert_frames_differ map-video-frame-map map-video-frame-comparison "neutral map and comparison scenes"
+assert_frames_differ rtl-frame-0 rtl-frame-map "RTL frame 0 and map frame"
+assert_frames_differ rtl-frame-map rtl-frame-comparison "RTL map and comparison scenes"
+
+echo "=== All requested frames are deterministic and scene-distinct ==="

@@ -2,60 +2,85 @@ import type { CalculateMetadataFunction } from 'remotion';
 import { MAP_VIDEO_FPS } from './map-video-schema';
 import type { MapVideoPlan } from './map-video-schema';
 
-/**
- * Compute the total plan duration in seconds from a validated plan.
- *
- * Transitions overlap scene boundaries, so the total is the sum of scene
- * durations minus the overlap budget. The result is never negative.
- */
-export function calculatePlanDurationSeconds(plan: MapVideoPlan): number {
-  const sceneSum = plan.scenes.reduce((sum, scene) => sum + scene.durationSeconds, 0);
-  const overlapCount = Math.max(0, plan.scenes.length - 1);
-  const overlapSeconds = plan.transitionSeconds * overlapCount;
-  return Math.max(0, sceneSum - overlapSeconds);
+function durationFrames(durationSeconds: number): number {
+  return Math.max(1, Math.round(durationSeconds * MAP_VIDEO_FPS));
 }
 
 /**
- * Metadata-driven timing for the generic map-video composition.
- *
- * The total duration is derived from the sum of scene durations minus the
- * transition overlap budget. The static `durationInFrames` used by the Studio
- * composition registration matches this computed value.
+ * Bound an overlap to both adjacent scene lengths while preserving at least one
+ * frame of forward schedule progress at every boundary. This prevents a short
+ * valid scene from moving the cursor backward when the requested transition is
+ * longer than the scene.
  */
-export const calculateMapVideoMetadata: CalculateMetadataFunction<MapVideoPlan> = ({
-  props,
-}) => {
-  const durationInFrames = Math.max(
-    1,
-    Math.round(calculatePlanDurationSeconds(props) * MAP_VIDEO_FPS),
+function boundedOverlapFrames(
+  requestedFrames: number,
+  currentDurationFrames: number,
+  nextDurationFrames: number,
+): number {
+  return Math.min(
+    requestedFrames,
+    Math.max(0, currentDurationFrames - 1),
+    Math.max(0, nextDurationFrames - 1),
   );
-  return {
-    durationInFrames,
-    fps: MAP_VIDEO_FPS,
-  };
-};
+}
 
 /**
  * Helper to compute the start frame and duration of each scene in a validated
  * plan. Used by the composition to lay out <Sequence> elements.
- *
- * Each scene after the first starts before the previous one ends by
- * `transitionSeconds`, creating an overlapping cross-dissolve.
  */
 export function buildSceneSchedule(plan: MapVideoPlan): {
   id: string;
   startFrame: number;
   durationInFrames: number;
 }[] {
-  const transitionFrames = Math.max(0, Math.round(plan.transitionSeconds * MAP_VIDEO_FPS));
+  const requestedTransitionFrames = Math.max(
+    0,
+    Math.round(plan.transitionSeconds * MAP_VIDEO_FPS),
+  );
+  const durations = plan.scenes.map((scene) => durationFrames(scene.durationSeconds));
   let cursor = 0;
+
   return plan.scenes.map((scene, index) => {
-    const durationInFrames = Math.max(1, Math.round(scene.durationSeconds * MAP_VIDEO_FPS));
-    const entry = { id: scene.id, startFrame: cursor, durationInFrames };
-    // Every scene except the last overlaps the following scene by the
-    // transition budget.
-    const overlap = index === plan.scenes.length - 1 ? 0 : transitionFrames;
-    cursor += durationInFrames - overlap;
+    const sceneDurationFrames = durations[index]!;
+    const entry = {
+      id: scene.id,
+      startFrame: cursor,
+      durationInFrames: sceneDurationFrames,
+    };
+
+    const nextDurationFrames = durations[index + 1];
+    if (nextDurationFrames !== undefined) {
+      const overlapFrames = boundedOverlapFrames(
+        requestedTransitionFrames,
+        sceneDurationFrames,
+        nextDurationFrames,
+      );
+      cursor += sceneDurationFrames - overlapFrames;
+    }
+
     return entry;
   });
 }
+
+/** Compute the exact composition duration from the bounded frame schedule. */
+export function calculatePlanDurationFrames(plan: MapVideoPlan): number {
+  const schedule = buildSceneSchedule(plan);
+  const last = schedule.at(-1);
+  if (!last) return 1;
+  return Math.max(1, last.startFrame + last.durationInFrames);
+}
+
+/** Compute the total plan duration in seconds from the exact frame schedule. */
+export function calculatePlanDurationSeconds(plan: MapVideoPlan): number {
+  return calculatePlanDurationFrames(plan) / MAP_VIDEO_FPS;
+}
+
+/** Metadata-driven timing for the generic map-video composition. */
+export const calculateMapVideoMetadata: CalculateMetadataFunction<MapVideoPlan> = ({
+  props,
+}) => {
+  return {
+    durationInFrames: calculatePlanDurationFrames(props),
+    fps: MAP_VIDEO_FPS,
+  };
+};

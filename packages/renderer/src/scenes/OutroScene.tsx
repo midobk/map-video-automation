@@ -4,6 +4,7 @@ import { CaptionStrip } from '../captions/renderer';
 import type { SceneProps } from './types';
 import { SceneShell } from './SceneShell';
 import { assertSceneKind } from './assert-kind';
+import { resolveSceneCaptionPresentation } from './caption-presentation';
 
 /**
  * Outro scene. A calm closing card with a heading and optional subtitle.
@@ -14,9 +15,10 @@ export const OutroScene: React.FC<SceneProps> = ({ scene, theme }) => {
   const subtitleReveal = useReveal(26);
   const headingFamily = resolveFontFamily(theme.typography.headingFamily);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
+  const captionPresentation = resolveSceneCaptionPresentation(scene);
 
   return (
-    <SceneShell theme={theme}>
+    <SceneShell theme={theme} reserveCaptionSpace={Boolean(scene.caption)}>
       <div
         style={{
           display: 'flex',
@@ -61,9 +63,9 @@ export const OutroScene: React.FC<SceneProps> = ({ scene, theme }) => {
         <CaptionStrip
           text={scene.caption}
           theme={theme}
-          startFrame={0}
-          endFrame={120}
-          language="en"
+          startFrame={captionPresentation.startFrame}
+          endFrame={captionPresentation.endFrame}
+          language={captionPresentation.language}
         />
       )}
     </SceneShell>

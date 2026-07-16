@@ -1,5 +1,8 @@
 import type { CaptionLanguage } from './types';
 
+/** Maximum number of lines supported by the bottom caption strip. */
+export const MAX_CAPTION_LINES = 3;
+
 /**
  * Default maximum line lengths for caption splitting.
  *
@@ -63,4 +66,34 @@ export function splitCaptionText(
   }
 
   return lines;
+}
+
+/**
+ * Split a caption for defensive direct rendering.
+ *
+ * Valid map-video plans are rejected when they exceed `MAX_CAPTION_LINES`. This
+ * helper additionally protects direct `CaptionStrip` callers by capping output
+ * and adding an ellipsis instead of allowing extra lines to overlap scene
+ * content.
+ */
+export function splitCaptionTextForRendering(
+  text: string,
+  language: CaptionLanguage,
+  maxLines = MAX_CAPTION_LINES,
+): string[] {
+  const lines = splitCaptionText(text, language);
+  const normalizedMaxLines = Number.isFinite(maxLines)
+    ? Math.max(0, Math.floor(maxLines))
+    : MAX_CAPTION_LINES;
+
+  if (lines.length <= normalizedMaxLines) return lines;
+  if (normalizedMaxLines === 0) return [];
+
+  const visible = lines.slice(0, normalizedMaxLines);
+  const lastIndex = visible.length - 1;
+  const lastLine = visible[lastIndex]!;
+  const maxLength = DEFAULT_MAX_LINE_LENGTH[language];
+  const shortened = lastLine.slice(0, Math.max(0, maxLength - 1)).trimEnd();
+  visible[lastIndex] = `${shortened}…`;
+  return visible;
 }

@@ -78,13 +78,12 @@ jobs:
         if: always()
         run: supabase stop --no-backup
 
-  render-fixture:
-    # Renders the PR 1A Remotion fixture and uploads the MP4 as a workflow
-    # artifact. Pulls in Remotion's bundled Chromium on first run, then caches
-    # it in the GitHub Actions workspace between steps. No secrets required,
-    # no external services touched.
+  render-fixtures:
+    # Renders every committed Remotion fixture, probes the MP4s, runs selected
+    # frame determinism checks, and uploads the evidence. No secrets or external
+    # provider calls are used.
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: apps/remotion-studio
@@ -108,18 +107,35 @@ jobs:
           fi
           ffmpeg -version | head -n 1
           ffprobe -version | head -n 1
-      - name: Render Remotion fixture (H.264 1080x1920 @30fps, ~6s)
+      - name: Render starter fixture
         run: pnpm exec remotion render starter out/starter/starter.mp4
-      - name: Probe rendered MP4
+      - name: Render neutral map-video fixture
+        run: pnpm exec remotion render map-video out/map-video/map-video.mp4
+      - name: Render Arabic RTL fixture
+        run: pnpm exec remotion render map-video-rtl out/map-video-rtl/map-video-rtl.mp4
+      - name: Probe rendered MP4s
         run: |
-          ffprobe -hide_banner -loglevel error \
-            -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
-            -show_entries format=duration,bit_rate \
-            out/starter/starter.mp4
-      - name: Upload fixture MP4
+          for file in \
+            out/starter/starter.mp4 \
+            out/map-video/map-video.mp4 \
+            out/map-video-rtl/map-video-rtl.mp4; do
+            echo "=== $file ==="
+            ffprobe -hide_banner -loglevel error \
+              -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
+              -show_entries format=duration,bit_rate \
+              "$file"
+          done
+      - name: Run selected-frame visual determinism checks
+        run: bash scripts/visual-regression.sh
+        working-directory: .
+      - name: Upload render and frame evidence
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: remotion-fixture-mp4
-          path: apps/remotion-studio/out/starter/starter.mp4
+          name: remotion-render-evidence
+          path: |
+            apps/remotion-studio/out/starter/starter.mp4
+            apps/remotion-studio/out/map-video/map-video.mp4
+            apps/remotion-studio/out/map-video-rtl/map-video-rtl.mp4
+            apps/remotion-studio/out/visual-regression/*.png
           if-no-files-found: error
           retention-days: 7

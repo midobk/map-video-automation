@@ -124,12 +124,18 @@ export function assertNoDuplicateAssets(assets: readonly AssetDeclaration[]): vo
 }
 
 /**
- * Validate a full asset manifest: each path is safe, types match extensions,
- * and there are no duplicates. Returns the normalized declarations.
+ * Validate a full asset manifest: each path is safe, each declared media type
+ * matches the normalized extension, and normalized paths are unique.
  */
 export function validateAssetManifest(
   assets: readonly AssetDeclaration[],
 ): AssetDeclaration[] {
-  assertNoDuplicateAssets(assets);
-  return assets.map((asset) => ({ ...asset, path: resolveStaticPath(asset.path) }));
+  const normalized = assets.map((asset) => {
+    const path = resolveStaticPath(asset.path);
+    validateAssetType(path, asset.type);
+    return { ...asset, path };
+  });
+
+  assertNoDuplicateAssets(normalized);
+  return normalized;
 }

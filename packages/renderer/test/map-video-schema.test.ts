@@ -3,6 +3,8 @@ import {
   mapVideoPlanSchema,
   mapVideoSceneSchema,
   neutralDarkTheme,
+  MAX_CAPTION_LINES,
+  splitCaptionText,
 } from '../src';
 import type { MapVideoScene } from '../src';
 
@@ -28,14 +30,86 @@ describe('map-video plan schema', () => {
       ...validPlan,
       scenes: [
         { ...baseScene, kind: 'title', title: 'Title' },
-        { ...baseScene, kind: 'map-highlight', label: 'Map', highlighted: ['A'], mapAsset: 'fixtures/maps/world.svg' },
-        { ...baseScene, kind: 'ranking', title: 'Ranking', items: [{ label: 'A', value: '1' }, { label: 'B', value: '2' }] },
-        { ...baseScene, kind: 'comparison', title: 'Compare', left: { label: 'L', value: '1' }, right: { label: 'R', value: '2' } },
+        {
+          ...baseScene,
+          kind: 'map-highlight',
+          label: 'Map',
+          highlighted: ['A'],
+          mapAsset: 'fixtures/maps/world.svg',
+        },
+        {
+          ...baseScene,
+          kind: 'ranking',
+          title: 'Ranking',
+          items: [
+            { label: 'A', value: '1' },
+            { label: 'B', value: '2' },
+          ],
+        },
+        {
+          ...baseScene,
+          kind: 'comparison',
+          title: 'Compare',
+          left: { label: 'L', value: '1' },
+          right: { label: 'R', value: '2' },
+        },
         { ...baseScene, kind: 'caption', text: 'Caption' },
         { ...baseScene, kind: 'outro', title: 'Outro' },
       ],
     });
     expect(plan.scenes).toHaveLength(6);
+  });
+
+  it('accepts a supported caption language', () => {
+    const scene = mapVideoSceneSchema.parse({
+      ...baseScene,
+      kind: 'title',
+      title: 'مرحبا',
+      captionLanguage: 'ar',
+    });
+    expect(scene.captionLanguage).toBe('ar');
+  });
+
+  it('rejects an unsupported caption language', () => {
+    expect(() =>
+      mapVideoSceneSchema.parse({
+        ...baseScene,
+        kind: 'title',
+        title: 'Hola',
+        captionLanguage: 'es',
+      }),
+    ).toThrow();
+  });
+
+  it('accepts a bottom caption that fits the reserved line envelope', () => {
+    const caption = 'a'.repeat(100);
+    expect(splitCaptionText(caption, 'en')).toHaveLength(MAX_CAPTION_LINES);
+    expect(() =>
+      mapVideoSceneSchema.parse({
+        ...baseScene,
+        caption,
+        kind: 'title',
+        title: 'Fits',
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a bottom caption that wraps beyond the reserved line envelope', () => {
+    const caption = Array.from({ length: 20 }, (_, index) => `word${index}`).join(' ');
+    expect(splitCaptionText(caption, 'en').length).toBeGreaterThan(MAX_CAPTION_LINES);
+
+    const result = mapVideoSceneSchema.safeParse({
+      ...baseScene,
+      caption,
+      kind: 'title',
+      title: 'Overflow',
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.path).toEqual(['caption']);
+      expect(result.error.issues[0]?.message).toContain('supports at most 3');
+    }
   });
 
   it('rejects an unsupported scene kind', () => {
