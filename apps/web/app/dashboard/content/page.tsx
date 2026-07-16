@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { loadDashboardContent } from '../../../lib/actions/content';
+import { DatabaseSetupBanner } from '../../../components/dashboard/DatabaseSetupBanner';
 
 export default async function ContentListPage() {
   const { items, error } = await loadDashboardContent();
@@ -11,7 +12,7 @@ export default async function ContentListPage() {
         <Link href="/dashboard/content/new" className="dashboard-button">New video</Link>
       </div>
 
-      {error && <div className="dashboard-error">{error}</div>}
+      {error && <DatabaseSetupBanner error={error} />}
 
       {items.length === 0 ? (
         <section>

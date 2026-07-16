@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { loadContentDetail } from '../../../../lib/actions/content';
 import { ApprovalPanel } from '../../../../components/dashboard/ApprovalPanel';
+import { DatabaseSetupBanner } from '../../../../components/dashboard/DatabaseSetupBanner';
 
 interface ContentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -10,7 +11,16 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
   const { id } = await params;
   const { item, revisions, error } = await loadContentDetail(id);
 
-  if (error || !item) {
+  if (error) {
+    return (
+      <>
+        <h1>Content detail</h1>
+        <DatabaseSetupBanner error={error} />
+      </>
+    );
+  }
+
+  if (!item) {
     notFound();
   }
 

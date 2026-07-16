@@ -5,6 +5,7 @@ import { z } from 'zod';
 import {
   createContentItem as dbCreateContentItem,
   getDefaultProject,
+  hasDatabaseConfig,
   listContentItems,
   getContentItem,
   getContentRevisions,
@@ -13,6 +14,10 @@ import {
 } from '@mapvideo/db';
 import type { ContentItem } from '@mapvideo/db';
 import { readServerEnvironment } from '../environment.server';
+
+const missingDatabaseError =
+  'Supabase is not configured. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY ' +
+  'to your environment (e.g. root .env.local or Vercel preview env vars).';
 
 const createContentSchema = z.object({
   title: z.string().min(1).max(120),
@@ -36,6 +41,10 @@ export async function createContentItem(
 ): Promise<{ success: true; id: string } | { success: false; error: string }> {
   try {
     const parsed = createContentSchema.parse(input);
+
+    if (!hasDatabaseConfig()) {
+      return { success: false, error: missingDatabaseError };
+    }
     const project = await getDefaultProject();
     if (!project) {
       return { success: false, error: 'No default project is configured.' };
@@ -75,6 +84,10 @@ export async function loadDashboardContent(): Promise<{
   items: ContentListItem[];
   error?: string;
 }> {
+  if (!hasDatabaseConfig()) {
+    return { items: [], error: missingDatabaseError };
+  }
+
   try {
     const project = await getDefaultProject();
     if (!project) return { items: [] };
@@ -103,6 +116,10 @@ export async function loadContentDetail(id: string): Promise<{
   audit?: { action: string; created_at: string }[];
   error?: string;
 }> {
+  if (!hasDatabaseConfig()) {
+    return { error: missingDatabaseError };
+  }
+
   try {
     const [item, revisions] = await Promise.all([
       getContentItem(id),
@@ -131,6 +148,10 @@ export async function updateContentStatus(
   id: string,
   status: ContentItem['status'],
 ): Promise<{ success: true } | { success: false; error: string }> {
+  if (!hasDatabaseConfig()) {
+    return { success: false, error: missingDatabaseError };
+  }
+
   try {
     await dbUpdateContentStatus(id, status);
     const project = await getDefaultProject();
@@ -172,6 +193,10 @@ export async function recordApprovalDecision(
         error:
           'Publishing kill switch is enabled. Approval is recorded locally only and cannot trigger publication.',
       };
+    }
+
+    if (!hasDatabaseConfig()) {
+      return { success: false, error: missingDatabaseError };
     }
 
     const nextStatus: ContentItem['status'] = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED';

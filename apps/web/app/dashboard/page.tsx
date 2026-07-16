@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { loadDashboardContent } from '../../lib/actions/content';
+import { DatabaseSetupBanner } from '../../components/dashboard/DatabaseSetupBanner';
 
 export default async function DashboardPage() {
   const { items, error } = await loadDashboardContent();
@@ -9,7 +10,7 @@ export default async function DashboardPage() {
       <h1>Dashboard</h1>
       <p className="lede">Create video ideas, review their status, and approve rendered drafts.</p>
 
-      {error && <div className="dashboard-error">{error}</div>}
+      {error && <DatabaseSetupBanner error={error} />}
 
       <section className="dashboard-cards">
         <div className="dashboard-card">
