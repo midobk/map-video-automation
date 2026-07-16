@@ -38,6 +38,13 @@ const isoOverrides: Record<string, string> = {
 const excludedNames = new Set(['N. Cyprus', 'Somaliland']);
 const nonIsoPlaceholders = new Set(['UNK']);
 
+/** Locale-independent UTF-16 code-unit ordering for byte-stable generated data. */
+function compareCodeUnits(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function buildDictionary(): CountryRecord[] {
   const lookup = new Map<string, string>();
   for (const country of worldCountries) {
@@ -62,7 +69,9 @@ function buildDictionary(): CountryRecord[] {
     return [{ iso3, canonicalName: name, aliases: [] }];
   });
 
-  return records.sort((left, right) => left.canonicalName.localeCompare(right.canonicalName));
+  return records.sort((left, right) =>
+    compareCodeUnits(left.canonicalName, right.canonicalName),
+  );
 }
 
 function packageFilePath(specifier: string): string {
