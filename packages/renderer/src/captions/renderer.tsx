@@ -4,7 +4,7 @@ import type { VideoTheme } from '../themes/theme-schema';
 import { resolveCaptionFadeEnvelope } from './fade';
 import { captionDirection } from './types';
 import type { CaptionLanguage } from './types';
-import { splitCaptionText } from './split';
+import { splitCaptionTextForRendering } from './split';
 import { CAPTION_LAYOUT } from './layout';
 
 export interface CaptionStripProps {
@@ -26,6 +26,8 @@ export interface CaptionStripProps {
  * - Stays inside the 9:16 safe area.
  * - Supports LTR (English/French) and RTL (Arabic) via CSS direction.
  * - Splits long text into multiple lines on word boundaries.
+ * - Defensively caps output to the reserved line envelope for direct callers;
+ *   validated map-video plans reject overflow before rendering.
  * - Fades in and out within the provided frame window when the scene is long
  *   enough; ultra-short scenes render at full opacity instead of constructing
  *   duplicate or reversed interpolation points.
@@ -38,7 +40,7 @@ export const CaptionStrip: React.FC<CaptionStripProps> = ({
   language,
 }) => {
   const frame = useCurrentFrame();
-  const lines = splitCaptionText(text, language);
+  const lines = splitCaptionTextForRendering(text, language);
   const direction = captionDirection(language);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
   const fadeEnvelope = resolveCaptionFadeEnvelope(startFrame, endFrame);
