@@ -10,7 +10,12 @@ export {
   type CaptionLine,
   type CaptionTiming,
 } from './types';
-export { splitCaptionText, DEFAULT_MAX_LINE_LENGTH } from './split';
+export {
+  splitCaptionText,
+  splitCaptionTextForRendering,
+  DEFAULT_MAX_LINE_LENGTH,
+  MAX_CAPTION_LINES,
+} from './split';
 export {
   measureCaptionLines,
   captionAvailableWidth,
