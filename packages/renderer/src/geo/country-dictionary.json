@@ -175,11 +175,6 @@
     "aliases": []
   },
   {
-    "iso3": "CIV",
-    "canonicalName": "Côte d'Ivoire",
-    "aliases": []
-  },
-  {
     "iso3": "HRV",
     "canonicalName": "Croatia",
     "aliases": []
@@ -197,6 +192,11 @@
   {
     "iso3": "CZE",
     "canonicalName": "Czechia",
+    "aliases": []
+  },
+  {
+    "iso3": "CIV",
+    "canonicalName": "Côte d'Ivoire",
     "aliases": []
   },
   {
@@ -247,11 +247,6 @@
   {
     "iso3": "EST",
     "canonicalName": "Estonia",
-    "aliases": []
-  },
-  {
-    "iso3": "SWZ",
-    "canonicalName": "eSwatini",
     "aliases": []
   },
   {
@@ -867,6 +862,11 @@
   {
     "iso3": "ZWE",
     "canonicalName": "Zimbabwe",
+    "aliases": []
+  },
+  {
+    "iso3": "SWZ",
+    "canonicalName": "eSwatini",
     "aliases": []
   }
 ]
