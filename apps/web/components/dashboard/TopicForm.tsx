@@ -22,6 +22,7 @@ export function TopicForm() {
     setPending(false);
     if (result.success) {
       router.push(`/dashboard/content/${result.id}`);
+      router.refresh();
     } else {
       setError(result.error);
     }
