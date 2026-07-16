@@ -5,22 +5,17 @@ import {
   starterComposition,
   mapVideoComposition,
   mapVideoRtlComposition,
+  mapVideoCountryZoomComposition,
+  mapVideoRankingComposition,
 } from '@mapvideo/renderer';
 import type { AnyCompositionDefinition } from '@mapvideo/renderer';
-
-/**
- * Local Remotion Studio entry. Each composition is defined in
- * `@mapvideo/renderer` (the authoritative package) and only *registered* here,
- * so the studio is a thin preview and visual-inspection surface.
- *
- * Render the fixture with:
- *   pnpm remotion:render:fixture
- */
 
 const compositions: AnyCompositionDefinition[] = [
   starterComposition,
   mapVideoComposition,
   mapVideoRtlComposition,
+  mapVideoCountryZoomComposition,
+  mapVideoRankingComposition,
 ];
 
 function RegisteredComposition({ def }: { def: AnyCompositionDefinition }) {
