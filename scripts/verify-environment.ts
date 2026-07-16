@@ -1,4 +1,4 @@
-import { readServerEnvironment } from '../apps/web/lib/environment.server';
+import { readServerEnvironment } from '../packages/shared/src/environment';
 
 const environment = readServerEnvironment();
 

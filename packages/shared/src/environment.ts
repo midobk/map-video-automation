@@ -16,6 +16,9 @@ export const environmentSchema = z
     PUBLISHING_KILL_SWITCH: environmentBoolean.default(true),
     ALLOW_LOCAL_EXTERNAL_PUBLISHING: environmentBoolean.default(false),
     NEXT_PUBLIC_APP_URL: z.url().default('http://localhost:3000'),
+    SUPABASE_URL: z.string().url().optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    SUPABASE_ANON_KEY: z.string().min(1).optional(),
   })
   .superRefine((value, context) => {
     if (
@@ -42,4 +45,16 @@ export type Environment = z.infer<typeof environmentSchema>;
 
 export function parseEnvironment(input: Record<string, string | undefined>): Environment {
   return environmentSchema.parse(input);
+}
+
+/**
+ * Read the server environment using the shared schema.
+ *
+ * Safe to call from server-only code in any package. Must not be imported by
+ * client bundles.
+ */
+export function readServerEnvironment(
+  input: Record<string, string | undefined> = process.env,
+): Environment {
+  return parseEnvironment(input);
 }
