@@ -12,6 +12,10 @@ the selected-frame script always rendered frame 0, and bottom caption strips
 overlaid normal scene content. Those findings are included in this stabilization
 rather than being deferred.
 
+The independent review of PR #7 then found a ninth edge case: very short valid
+scenes could produce duplicate or reversed caption-fade interpolation points.
+That finding is also repaired in this PR before merge.
+
 This report is the repository record for issue #6 and PR #7.
 
 ## Findings and remediation
@@ -94,6 +98,19 @@ captions.
 maximum line count, line height, padding, bottom offset, and a fixed visual gap.
 Every scene that renders a bottom caption opts into this reservation.
 
+### 9. Short scenes could create invalid caption-fade ranges
+
+The caption strip used fixed eight-frame fade-in and fade-out points. For a
+three-frame scene this produced a non-monotonic interpolation range such as
+`[0, 8, -5, 3]`; sixteen-frame scenes produced duplicate middle points. The
+scene schema permits such short positive durations.
+
+**Fix:** `resolveCaptionFadeEnvelope()` limits each fade to the available frame
+window while keeping all interpolation points strictly increasing. One- and
+two-frame scenes cannot support a four-point envelope, so they render the
+caption at full opacity for the lifetime of their enclosing sequence instead of
+calling `interpolate()` with invalid points.
+
 ## Regression coverage
 
 The stabilization branch adds coverage for:
@@ -108,7 +125,11 @@ The stabilization branch adds coverage for:
 - Arabic fixture language metadata;
 - ten-second caption windows and legacy English fallback;
 - scene-shell caption-space calculation;
-- real selected-frame rendering through Remotion's `--frame` option.
+- real selected-frame rendering through Remotion's `--frame` option;
+- normal eight-frame caption fades;
+- strictly increasing three-frame fade points;
+- full-opacity fallback for one- and two-frame scenes;
+- the sixteen-frame duplicate-point boundary.
 
 ## Process control added
 
@@ -120,9 +141,9 @@ A green head before review completion is not merge approval.
 
 ## Validation status
 
-PR #7 remains a draft until the final current head passes all repository CI
+PR #7 remains unmerged until the final post-review head passes all repository CI
 jobs, normal and RTL fixture rendering, selected-frame visual regression,
-Vercel preview, manual frame inspection, and a new independent review. Results
+Vercel preview, manual frame inspection, and review-thread verification. Results
 are recorded in the PR conversation rather than being predicted here.
 
 ## Scope boundaries
