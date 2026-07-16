@@ -1,5 +1,6 @@
 import {
   geoCentroid,
+  geoDistance,
   geoMercator,
   geoNaturalEarth1,
   geoOrthographic,
@@ -34,6 +35,22 @@ export function centroidOf(
 ): [number, number] {
   const centroid = geoCentroid(geo);
   return [centroid[0] ?? 0, centroid[1] ?? 0];
+}
+
+/**
+ * Return whether a geographic point lies on the visible hemisphere. Flat
+ * projections show every in-bounds point; orthographic maps must additionally
+ * reject points more than 90 degrees from the current geographic center.
+ */
+export function isPointVisibleOnProjection(
+  name: ProjectionName,
+  rotation: readonly [number, number],
+  point: readonly [number, number],
+): boolean {
+  if (name !== 'orthographic') return true;
+
+  const center: [number, number] = [-rotation[0], -rotation[1]];
+  return geoDistance(center, [point[0], point[1]]) <= Math.PI / 2 + 1e-9;
 }
 
 /**
