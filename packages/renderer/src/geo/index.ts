@@ -2,12 +2,10 @@ export { MapCanvas, type MapCanvasProps } from './MapCanvas';
 export {
   countryDictionary,
   countryByIso3,
-  countryByNumericId,
   countryByCanonicalName,
   isKnownIso3,
   resolveCountryRecord,
   resolveCountryName,
-  resolveCountryNumericId,
   type CountryRecord,
 } from './country-dictionary';
 export { GEO_DATASET, type GeoDataset } from './dataset-manifest';
@@ -20,6 +18,7 @@ export {
 export {
   allCountries,
   landFeature,
+  countryIso3ForFeature,
   findFeaturesByIsoCodes,
   featureCollectionFromIsoCodes,
 } from './topology';
