@@ -36,6 +36,7 @@ const isoOverrides: Record<string, string> = {
 };
 
 const excludedNames = new Set(['N. Cyprus', 'Somaliland']);
+const nonIsoPlaceholders = new Set(['UNK']);
 
 function buildDictionary(): CountryRecord[] {
   const lookup = new Map<string, string>();
@@ -57,6 +58,7 @@ function buildDictionary(): CountryRecord[] {
     if (!name || excludedNames.has(name)) return [];
     const iso3 = isoOverrides[name] ?? lookup.get(name.toLowerCase());
     if (!iso3) throw new Error(`No ISO3 match for pinned world-atlas feature "${name}".`);
+    if (!/^[A-Z]{3}$/u.test(iso3) || nonIsoPlaceholders.has(iso3)) return [];
     return [{ iso3, canonicalName: name, aliases: [] }];
   });
 
