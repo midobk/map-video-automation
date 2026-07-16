@@ -115,16 +115,27 @@ create index if not exists idx_workflow_runs_content_item on public.workflow_run
 create index if not exists idx_audit_events_org on public.audit_events(organization_id);
 
 -- RLS: deny all browser access until explicit policies are added.
-alter table public.organizations enable row level security;
-alter table public.projects enable row level security;
-alter table public.content_items enable row level security;
-alter table public.content_revisions enable row level security;
-alter table public.workflow_runs enable row level security;
-alter table public.audit_events enable row level security;
+alter table if exists public.organizations enable row level security;
+alter table if exists public.projects enable row level security;
+alter table if exists public.content_items enable row level security;
+alter table if exists public.content_revisions enable row level security;
+alter table if exists public.workflow_runs enable row level security;
+alter table if exists public.audit_events enable row level security;
 
-create policy if not exists deny_all on public.organizations as restrictive for all to public using (false);
-create policy if not exists deny_all on public.projects as restrictive for all to public using (false);
-create policy if not exists deny_all on public.content_items as restrictive for all to public using (false);
-create policy if not exists deny_all on public.content_revisions as restrictive for all to public using (false);
-create policy if not exists deny_all on public.workflow_runs as restrictive for all to public using (false);
-create policy if not exists deny_all on public.audit_events as restrictive for all to public using (false);
+drop policy if exists deny_all on public.organizations;
+create policy deny_all on public.organizations as restrictive for all to public using (false);
+
+drop policy if exists deny_all on public.projects;
+create policy deny_all on public.projects as restrictive for all to public using (false);
+
+drop policy if exists deny_all on public.content_items;
+create policy deny_all on public.content_items as restrictive for all to public using (false);
+
+drop policy if exists deny_all on public.content_revisions;
+create policy deny_all on public.content_revisions as restrictive for all to public using (false);
+
+drop policy if exists deny_all on public.workflow_runs;
+create policy deny_all on public.workflow_runs as restrictive for all to public using (false);
+
+drop policy if exists deny_all on public.audit_events;
+create policy deny_all on public.audit_events as restrictive for all to public using (false);
