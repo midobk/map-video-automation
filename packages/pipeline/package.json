@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./render": "./src/render/index.ts"
+    "./render": "./dist/render/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
