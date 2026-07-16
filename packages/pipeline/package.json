@@ -5,7 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./render": "./dist/render/index.js"
+    "./render": {
+      "types": "./src/render/index.ts",
+      "default": "./dist/render/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
