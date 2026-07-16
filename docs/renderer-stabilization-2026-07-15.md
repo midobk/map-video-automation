@@ -12,9 +12,10 @@ the selected-frame script always rendered frame 0, and bottom caption strips
 overlaid normal scene content. Those findings are included in this stabilization
 rather than being deferred.
 
-The independent review of PR #7 then found a ninth edge case: very short valid
-scenes could produce duplicate or reversed caption-fade interpolation points.
-That finding is also repaired in this PR before merge.
+Independent reviews of PR #7 found two more edge cases before merge: short valid
+scenes could create invalid caption-fade interpolation ranges, and captions that
+wrapped beyond three lines could exceed the scene-shell space reserved for them.
+Both findings are repaired and covered here.
 
 This report is the repository record for issue #6 and PR #7.
 
@@ -111,6 +112,19 @@ two-frame scenes cannot support a four-point envelope, so they render the
 caption at full opacity for the lifetime of their enclosing sequence instead of
 calling `interpolate()` with invalid points.
 
+### 10. Caption text could exceed the reserved three-line envelope
+
+`SceneShell` reserved space for three bottom-caption lines, but the plan schema
+accepted captions up to 300 characters without checking the wrapped line count.
+`CaptionStrip` rendered every line, so a fourth or later line could extend above
+the reserved area and cover normal scene content.
+
+**Fix:** the three-line maximum is now a shared contract. `mapVideoSceneSchema`
+rejects bottom captions that wrap beyond it for the selected language,
+`CAPTION_LAYOUT` reserves the same number of lines, and defensive direct
+`CaptionStrip` calls cap overflow to three lines with an ellipsis. The full-frame
+caption scene remains separate and is not subject to this bottom-strip limit.
+
 ## Regression coverage
 
 The stabilization branch adds coverage for:
@@ -129,7 +143,10 @@ The stabilization branch adds coverage for:
 - normal eight-frame caption fades;
 - strictly increasing three-frame fade points;
 - full-opacity fallback for one- and two-frame scenes;
-- the sixteen-frame duplicate-point boundary.
+- the sixteen-frame duplicate-point boundary;
+- schema acceptance at exactly three wrapped lines;
+- schema rejection beyond three wrapped lines;
+- defensive direct-render truncation and ellipsis.
 
 ## Process control added
 
@@ -143,7 +160,7 @@ A green head before review completion is not merge approval.
 
 PR #7 remains unmerged until the final post-review head passes all repository CI
 jobs, normal and RTL fixture rendering, selected-frame visual regression,
-Vercel preview, manual frame inspection, and review-thread verification. Results
+Vercel status, manual frame inspection, and review-thread verification. Results
 are recorded in the PR conversation rather than being predicted here.
 
 ## Scope boundaries
