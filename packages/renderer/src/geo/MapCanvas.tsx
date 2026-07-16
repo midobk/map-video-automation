@@ -2,9 +2,13 @@ import React, { useMemo } from 'react';
 import { geoPath } from 'd3-geo';
 import type { Feature, Geometry } from 'geojson';
 import type { VideoTheme } from '../themes/theme-schema';
-import { countryByNumericId } from './country-dictionary';
 import { createProjection, fitProjectionState, interpolateProjectionState } from './projections';
-import { allCountries, featureCollectionFromIsoCodes, landFeature } from './topology';
+import {
+  allCountries,
+  countryIso3ForFeature,
+  featureCollectionFromIsoCodes,
+  landFeature,
+} from './topology';
 import type { MapLabel, ProjectionName } from './types';
 
 export interface MapCanvasProps {
@@ -71,15 +75,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
   const countryPaths = useMemo(
     () =>
-      allCountries.features.map((feature: Feature<Geometry>, index) => {
-        const numericId = feature.id === undefined || feature.id === null ? '' : String(feature.id);
-        const country = countryByNumericId.get(numericId);
-        return {
-          d: pathGenerator(feature) ?? undefined,
-          key: numericId || `country-${index}`,
-          iso3: country?.iso3,
-        };
-      }),
+      allCountries.features.map((country: Feature<Geometry>, index) => ({
+        d: pathGenerator(country) ?? undefined,
+        key:
+          typeof country.properties?.name === 'string'
+            ? country.properties.name
+            : `country-${index}`,
+        iso3: countryIso3ForFeature(country),
+      })),
     [pathGenerator],
   );
 
