@@ -12,6 +12,7 @@ export { GEO_DATASET, type GeoDataset } from './dataset-manifest';
 export {
   fitProjectionState,
   interpolateProjectionState,
+  isPointVisibleOnProjection,
   centroidOf,
   createProjection,
 } from './projections';
