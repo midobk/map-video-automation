@@ -143,6 +143,7 @@ export {
   GEO_DATASET,
   fitProjectionState,
   interpolateProjectionState,
+  isPointVisibleOnProjection,
   centroidOf,
   createProjection,
   allCountries,
