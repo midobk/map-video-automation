@@ -50,6 +50,7 @@ export type ContentRevision = {
   script: unknown | null;
   video_plan: unknown | null;
   content_hash: string;
+  render_url: string | null;
   created_by: string | null;
   created_at: string;
 };

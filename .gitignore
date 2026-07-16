@@ -9,6 +9,7 @@ coverage/
 .DS_Store
 *.log
 *.tsbuildinfo
+.claude/
 supabase/.branches/
 supabase/.temp/
 

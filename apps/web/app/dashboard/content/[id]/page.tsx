@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { loadContentDetail } from '../../../../lib/actions/content';
 import { ApprovalPanel } from '../../../../components/dashboard/ApprovalPanel';
 import { DatabaseSetupBanner } from '../../../../components/dashboard/DatabaseSetupBanner';
+import { PreviewPanel } from '../../../../components/dashboard/PreviewPanel';
 
 interface ContentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -39,14 +40,7 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
           <p className="dashboard-topic">{item.topic_prompt}</p>
 
           <h2>Preview</h2>
-          <div className="dashboard-preview">
-            <div className="dashboard-preview-placeholder">
-              <p>Rendered preview will appear here once research and rendering run.</p>
-              <p className="dashboard-hint">
-                For now, use the Remotion Studio to inspect the neutral fixture.
-              </p>
-            </div>
-          </div>
+          <PreviewPanel itemId={item.id} status={item.status} revisions={revisions ?? []} />
 
           <h2>Revisions</h2>
           {revisions && revisions.length > 0 ? (

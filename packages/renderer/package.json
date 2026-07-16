@@ -5,6 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./captions/split": "./src/captions/split.ts",
+    "./captions/types": "./src/captions/types.ts",
+    "./compositions/map-video/schema": "./src/compositions/map-video/map-video-schema.ts",
+    "./themes/examples": "./src/themes/examples.ts",
+    "./voice": "./src/voice/index.ts",
     "./voice/server": "./src/voice/server.ts"
   },
   "scripts": {
