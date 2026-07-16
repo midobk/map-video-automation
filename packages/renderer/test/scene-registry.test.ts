@@ -14,13 +14,13 @@ describe('scene renderer registry', () => {
       'map-highlight',
       'outro',
       'ranking',
+      'stat-card',
       'title',
     ]);
   });
 
   it('resolves a renderer for a supported kind', () => {
-    const Renderer = resolveSceneRenderer('title');
-    expect(Renderer).toBe(sceneRenderers.title);
+    expect(resolveSceneRenderer('stat-card')).toBe(sceneRenderers['stat-card']);
   });
 
   it('throws for an unsupported kind', () => {

@@ -4,6 +4,7 @@ export {
   titleSceneSchema,
   mapHighlightSceneSchema,
   rankingSceneSchema,
+  statCardSceneSchema,
   comparisonSceneSchema,
   captionSceneSchema,
   outroSceneSchema,
@@ -22,3 +23,5 @@ export {
 export { MapVideoComposition } from './MapVideoComposition';
 export { mapVideoComposition } from './registry-entry';
 export { mapVideoRtlComposition } from './rtl-registry-entry';
+export { mapVideoCountryZoomComposition } from './country-zoom-registry-entry';
+export { mapVideoRankingComposition } from './ranking-registry-entry';

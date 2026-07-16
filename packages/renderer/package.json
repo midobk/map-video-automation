@@ -15,14 +15,22 @@
   },
   "dependencies": {
     "@remotion/google-fonts": "4.0.475",
+    "d3-geo": "3.1.1",
     "remotion": "4.0.475",
+    "topojson-client": "3.1.0",
+    "world-atlas": "2.0.2",
     "zod": "4.3.6"
   },
   "peerDependencies": {
     "react": "^19.0.0"
   },
   "devDependencies": {
+    "@types/d3-geo": "3.1.0",
+    "@types/geojson": "7946.0.16",
     "@types/react": "19.2.17",
-    "react": "19.2.7"
+    "@types/topojson-client": "3.1.5",
+    "@types/topojson-specification": "1.0.5",
+    "react": "19.2.7",
+    "world-countries": "5.1.0"
   }
 }

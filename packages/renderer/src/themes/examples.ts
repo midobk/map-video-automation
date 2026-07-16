@@ -1,11 +1,6 @@
 import type { VideoTheme } from './theme-schema';
 
-/**
- * Neutral, brand-free example themes. These are starting points, not the
- * platform's identity. Real videos pass their own validated theme through
- * composition props. No client brand colors live in this package.
- */
-
+/** Neutral, brand-free example themes. */
 export const neutralDarkTheme: VideoTheme = {
   colors: {
     background: '#0b0e14',
@@ -14,6 +9,14 @@ export const neutralDarkTheme: VideoTheme = {
     accent: '#4f8cff',
     text: '#f4f6fb',
     mutedText: '#9aa6b8',
+  },
+  map: {
+    ocean: '#0b0e14',
+    land: '#1c2230',
+    border: '#3d4a63',
+    highlight: '#4f8cff',
+    context: '#293348',
+    label: '#f4f6fb',
   },
   typography: {
     headingFamily: 'Inter',
@@ -31,6 +34,14 @@ export const neutralLightTheme: VideoTheme = {
     accent: '#2b6cb0',
     text: '#1a202c',
     mutedText: '#718096',
+  },
+  map: {
+    ocean: '#e8eef5',
+    land: '#ffffff',
+    border: '#a0aec0',
+    highlight: '#2b6cb0',
+    context: '#cbd5e0',
+    label: '#1a202c',
   },
   typography: {
     headingFamily: 'Inter',

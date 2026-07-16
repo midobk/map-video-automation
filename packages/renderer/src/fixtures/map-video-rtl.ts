@@ -4,12 +4,6 @@ import type { MapVideoPlan } from '../compositions/map-video/map-video-schema';
 
 export const rtlMapVideoFixtureName = 'map-video-rtl' as const;
 
-/**
- * Arabic/RTL map-video fixture.
- *
- * Verifies Arabic shaping, right-to-left directionality, line wrapping, and
- * caption safe areas. Uses neutral geography only.
- */
 export const rtlMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
   theme: neutralDarkTheme,
   projectId: 'rtl-map',
@@ -30,8 +24,23 @@ export const rtlMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       durationSeconds: 3,
       captionLanguage: 'ar',
       label: 'القارات',
-      highlighted: ['أفريقيا', 'آسيا', 'أمريكا الشمالية', 'أمريكا الجنوبية', 'أنتاركتيكا', 'أوقيانوسيا'],
-      mapAsset: 'fixtures/maps/world.svg',
+      highlighted: [
+        'أفريقيا',
+        'آسيا',
+        'أمريكا الشمالية',
+        'أمريكا الجنوبية',
+        'أنتاركتيكا',
+        'أوقيانوسيا',
+      ],
+      projection: 'natural-earth',
+      labels: [
+        { text: 'أفريقيا', longitude: 20, latitude: 5 },
+        { text: 'آسيا', longitude: 90, latitude: 45 },
+        { text: 'أمريكا الشمالية', longitude: -100, latitude: 50 },
+        { text: 'أمريكا الجنوبية', longitude: -60, latitude: -15 },
+        { text: 'أنتاركتيكا', longitude: 0, latitude: -80 },
+        { text: 'أوقيانوسيا', longitude: 135, latitude: -25 },
+      ],
       caption: 'تغطي القارات حوالي 29٪ من سطح الأرض.',
     },
     {

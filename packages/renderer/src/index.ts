@@ -1,15 +1,8 @@
 /**
  * @mapvideo/renderer — authoritative Remotion rendering logic for the
  * Map Video Automation platform.
- *
- * This package contains animation helpers, asset-safety utilities, audio
- * behavior, validated themes, props-driven compositions, a generic scene-plan
- * runtime, captions, voice-provider boundary, and asset/voiceover manifests.
- * It is consumed by `apps/remotion-studio`, which is only the local
- * development, preview, and visual-inspection surface.
  */
 
-// Animation helpers and spring presets.
 export {
   SMOOTH,
   SNAPPY,
@@ -21,7 +14,6 @@ export {
 } from './animation/anim';
 export { VFX_INTENSITY, vfx } from './animation/vfx';
 
-// Asset-safety and font helpers.
 export {
   resolveStaticPath,
   validateAssetType,
@@ -44,7 +36,6 @@ export {
   type AssetManifestInput,
 } from './assets/manifest';
 
-// Audio behavior, optional audio, and voice providers.
 export {
   resolveMissingAssetBehavior,
   enforceMissingAsset,
@@ -79,7 +70,6 @@ export {
   type VoiceoverManifest,
 } from './voice';
 
-// Validated themes.
 export {
   videoThemeSchema,
   parseTheme,
@@ -93,7 +83,6 @@ export {
   type ExampleThemeId,
 } from './themes';
 
-// Composition registry and compositions.
 export {
   type CompositionDefinition,
   type AnyCompositionDefinition,
@@ -112,7 +101,6 @@ export {
   type StartProps,
 } from './compositions';
 
-// Scene runtime.
 export {
   sceneRenderers,
   resolveSceneRenderer,
@@ -122,7 +110,6 @@ export {
   SceneShell,
 } from './scenes';
 
-// Captions.
 export {
   captionDirection,
   captionLanguageSchema,
@@ -145,16 +132,47 @@ export {
 } from './captions';
 export { CaptionStrip, type CaptionStripProps } from './captions';
 
-// Map-video composition runtime.
+export {
+  MapCanvas,
+  countryDictionary,
+  countryByIso3,
+  countryByCanonicalName,
+  isKnownIso3,
+  resolveCountryRecord,
+  resolveCountryName,
+  GEO_DATASET,
+  fitProjectionState,
+  interpolateProjectionState,
+  isPointVisibleOnProjection,
+  centroidOf,
+  createProjection,
+  allCountries,
+  landFeature,
+  countryIso3ForFeature,
+  findFeaturesByIsoCodes,
+  featureCollectionFromIsoCodes,
+  resolveMapZoomProgress,
+  type MapCanvasProps,
+  type CountryRecord,
+  type GeoDataset,
+  type MapLabel,
+  type ProjectionName,
+  type ProjectionState,
+  type FitProjectionOptions,
+} from './geo';
+
 export {
   mapVideoPlanSchema,
   mapVideoSceneSchema,
+  statCardSceneSchema,
   calculateMapVideoMetadata,
   calculatePlanDurationSeconds,
   buildSceneSchedule,
   MapVideoComposition,
   mapVideoComposition,
   mapVideoRtlComposition,
+  mapVideoCountryZoomComposition,
+  mapVideoRankingComposition,
   MAP_VIDEO_FPS,
   MAP_VIDEO_WIDTH,
   MAP_VIDEO_HEIGHT,
@@ -163,13 +181,14 @@ export {
   type MapVideoSceneKind,
 } from './compositions/map-video';
 
-// Deterministic fixtures.
-export { starterFixtureProps } from './fixtures';
 export {
+  starterFixtureProps,
   neutralMapVideoFixture,
   neutralMapVideoFixtureName,
-} from './fixtures/map-video-neutral';
-export {
   rtlMapVideoFixture,
   rtlMapVideoFixtureName,
-} from './fixtures/map-video-rtl';
+  countryZoomFixture,
+  countryZoomFixtureName,
+  rankingFixture,
+  rankingFixtureName,
+} from './fixtures';

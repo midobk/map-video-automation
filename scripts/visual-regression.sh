@@ -51,11 +51,21 @@ render_twice map-video-rtl 0 rtl-frame-0
 render_twice map-video-rtl 128 rtl-frame-map
 render_twice map-video-rtl 165 rtl-frame-comparison
 render_twice map-video-rtl 254 rtl-frame-last
+render_twice map-video-country-zoom 90 country-zoom-morocco
+render_twice map-video-country-zoom 150 country-zoom-canada
+render_twice map-video-country-zoom 210 country-zoom-algeria
+render_twice map-video-country-zoom 270 country-zoom-france
+render_twice map-video-ranking 100 ranking-list
+render_twice map-video-ranking 190 ranking-stat-card
 
 assert_frames_differ starter-frame-0 starter-frame-60 "starter frame 0 and frame 60"
 assert_frames_differ map-video-frame-0 map-video-frame-map "neutral map-video frame 0 and map frame"
 assert_frames_differ map-video-frame-map map-video-frame-comparison "neutral map and comparison scenes"
 assert_frames_differ rtl-frame-0 rtl-frame-map "RTL frame 0 and map frame"
 assert_frames_differ rtl-frame-map rtl-frame-comparison "RTL map and comparison scenes"
+assert_frames_differ country-zoom-morocco country-zoom-canada "Morocco and later Canada zooms"
+assert_frames_differ country-zoom-canada country-zoom-algeria "Canada and later Algeria zooms"
+assert_frames_differ country-zoom-algeria country-zoom-france "Algeria and later France zooms"
+assert_frames_differ ranking-list ranking-stat-card "ranking and stat-card scenes"
 
 echo "=== All requested frames are deterministic and scene-distinct ==="

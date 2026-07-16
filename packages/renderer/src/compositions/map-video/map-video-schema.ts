@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MAX_CAPTION_LINES, splitCaptionText } from '../../captions/split';
 import { captionLanguageSchema } from '../../captions/types';
+import { isKnownIso3 } from '../../geo/country-dictionary';
 import { videoThemeSchema } from '../../themes/theme-schema';
 
 /** Fixed geometry for all map-video compositions. */
@@ -8,7 +9,6 @@ export const MAP_VIDEO_FPS = 30;
 export const MAP_VIDEO_WIDTH = 1080;
 export const MAP_VIDEO_HEIGHT = 1920;
 
-/** A single scene in a map-video plan. */
 const baseSceneSchema = z.object({
   id: z.string().min(1).max(64),
   durationSeconds: z.number().finite().positive().max(120),
@@ -24,11 +24,36 @@ export const titleSceneSchema = baseSceneSchema.extend({
   eyebrow: z.string().max(80).optional(),
 });
 
+const iso3Schema = z
+  .string()
+  .regex(/^[A-Z]{3}$/u, 'Expected an uppercase ISO 3166-1 alpha-3 code.')
+  .refine(isKnownIso3, 'Unknown ISO 3166-1 alpha-3 code.');
+
+const iso3ListSchema = z
+  .array(iso3Schema)
+  .max(8)
+  .superRefine((codes, context) => {
+    if (new Set(codes).size !== codes.length) {
+      context.addIssue({ code: 'custom', message: 'ISO3 lists may not contain duplicates.' });
+    }
+  })
+  .default([]);
+
+const mapLabelSchema = z.object({
+  text: z.string().min(1).max(80),
+  longitude: z.number().finite().min(-180).max(180),
+  latitude: z.number().finite().min(-90).max(90),
+});
+
 export const mapHighlightSceneSchema = baseSceneSchema.extend({
   kind: z.literal('map-highlight'),
   label: z.string().min(1).max(120),
   highlighted: z.array(z.string().min(1).max(80)).min(1).max(8),
-  mapAsset: z.string().min(1).max(200),
+  projection: z.enum(['natural-earth', 'mercator', 'orthographic']).default('natural-earth'),
+  focusIsoCodes: iso3ListSchema,
+  contextIsoCodes: iso3ListSchema,
+  labels: z.array(mapLabelSchema).max(8).default([]),
+  mapAsset: z.string().min(1).max(200).optional(),
 });
 
 export const rankingSceneSchema = baseSceneSchema.extend({
@@ -44,6 +69,13 @@ export const rankingSceneSchema = baseSceneSchema.extend({
     )
     .min(2)
     .max(7),
+});
+
+export const statCardSceneSchema = baseSceneSchema.extend({
+  kind: z.literal('stat-card'),
+  headline: z.string().min(1).max(120),
+  value: z.string().min(1).max(40),
+  subtext: z.string().max(200).optional(),
 });
 
 export const comparisonSceneSchema = baseSceneSchema.extend({
@@ -74,12 +106,27 @@ const mapVideoSceneUnionSchema = z.discriminatedUnion('kind', [
   titleSceneSchema,
   mapHighlightSceneSchema,
   rankingSceneSchema,
+  statCardSceneSchema,
   comparisonSceneSchema,
   captionSceneSchema,
   outroSceneSchema,
 ]);
 
 export const mapVideoSceneSchema = mapVideoSceneUnionSchema.superRefine((scene, context) => {
+  if (
+    scene.kind === 'map-highlight' &&
+    scene.mapAsset === undefined &&
+    scene.focusIsoCodes.length === 0 &&
+    scene.contextIsoCodes.length === 0 &&
+    scene.labels.length === 0
+  ) {
+    context.addIssue({
+      code: 'custom',
+      path: ['focusIsoCodes'],
+      message: 'Map highlights require a static mapAsset or explicit vector geography.',
+    });
+  }
+
   if (scene.caption === undefined) return;
 
   const language = scene.captionLanguage ?? 'en';
