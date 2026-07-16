@@ -1,5 +1,5 @@
 import { MAP_VIDEO_WIDTH } from '../compositions/map-video/map-video-schema';
-import { splitCaptionText } from './split';
+import { MAX_CAPTION_LINES, splitCaptionText } from './split';
 import type { CaptionLanguage, CaptionLine } from './types';
 
 /**
@@ -17,7 +17,7 @@ export const CAPTION_LAYOUT = {
   stripBottom: 80,
   safeLeft: 80,
   safeRight: 80,
-  maxLines: 3,
+  maxLines: MAX_CAPTION_LINES,
 } as const;
 
 /**
