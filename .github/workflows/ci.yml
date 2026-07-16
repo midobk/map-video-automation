@@ -46,6 +46,8 @@ jobs:
         run: pnpm test
       - name: Build
         run: pnpm build
+      - name: Verify deterministic geo manifest
+        run: pnpm geo:check
       - name: Verify safe runtime configuration
         run: pnpm verify
       - name: Scan repository with Gitleaks
@@ -79,11 +81,8 @@ jobs:
         run: supabase stop --no-backup
 
   render-fixtures:
-    # Renders every committed Remotion fixture, probes the MP4s, runs selected
-    # frame determinism checks, and uploads the evidence. No secrets or external
-    # provider calls are used.
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: apps/remotion-studio
@@ -113,12 +112,18 @@ jobs:
         run: pnpm exec remotion render map-video out/map-video/map-video.mp4
       - name: Render Arabic RTL fixture
         run: pnpm exec remotion render map-video-rtl out/map-video-rtl/map-video-rtl.mp4
+      - name: Render country-zoom fixture
+        run: pnpm exec remotion render map-video-country-zoom out/map-video-country-zoom/map-video-country-zoom.mp4
+      - name: Render ranking fixture
+        run: pnpm exec remotion render map-video-ranking out/map-video-ranking/map-video-ranking.mp4
       - name: Probe rendered MP4s
         run: |
           for file in \
             out/starter/starter.mp4 \
             out/map-video/map-video.mp4 \
-            out/map-video-rtl/map-video-rtl.mp4; do
+            out/map-video-rtl/map-video-rtl.mp4 \
+            out/map-video-country-zoom/map-video-country-zoom.mp4 \
+            out/map-video-ranking/map-video-ranking.mp4; do
             echo "=== $file ==="
             ffprobe -hide_banner -loglevel error \
               -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
@@ -136,6 +141,8 @@ jobs:
             apps/remotion-studio/out/starter/starter.mp4
             apps/remotion-studio/out/map-video/map-video.mp4
             apps/remotion-studio/out/map-video-rtl/map-video-rtl.mp4
+            apps/remotion-studio/out/map-video-country-zoom/map-video-country-zoom.mp4
+            apps/remotion-studio/out/map-video-ranking/map-video-ranking.mp4
             apps/remotion-studio/out/visual-regression/*.png
           if-no-files-found: error
           retention-days: 7
