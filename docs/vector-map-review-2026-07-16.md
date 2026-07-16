@@ -59,6 +59,27 @@ before calculating scale and translation. Canada is rendered with the
 orthographic projection in the committed fixture and is covered by unit and
 visual-regression checks.
 
+### 6. Generated metadata admitted a non-ISO placeholder
+
+The pinned metadata package represents Kosovo with `UNK`, which matches the
+three-uppercase-character shape but is not an ISO 3166-1 alpha-3 assignment.
+That placeholder entered the validator dictionary and made `UNK` appear valid.
+
+**Resolution:** generation excludes known non-ISO placeholders before committing
+the dictionary. The generated dictionary no longer contains Kosovo/`UNK`, and
+schema and geography tests explicitly reject it.
+
+### 7. A map highlight could omit every map source
+
+Because the legacy static asset and all vector fields were optional/defaulted, a
+scene containing only presentation labels such as `highlighted: ['Canada']`
+could validate and render a generic world map without the claimed highlight.
+
+**Resolution:** every map-highlight scene must provide either a static `mapAsset`
+or explicit vector geography through focus countries, context countries, or map
+labels. A completely source-free highlight is rejected at the semantic schema
+gate, while legacy static maps and labels-only world maps remain supported.
+
 ## Additional hardening
 
 - Vector-map theme colors are runtime-validated.
