@@ -17,5 +17,10 @@ export {
   distributeCaptionLines,
   CAPTION_LAYOUT,
 } from './layout';
+export {
+  resolveCaptionFadeEnvelope,
+  DEFAULT_CAPTION_FADE_FRAMES,
+  type CaptionFadeEnvelope,
+} from './fade';
 export { CaptionStrip } from './renderer';
 export type { CaptionStripProps } from './renderer';
