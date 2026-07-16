@@ -131,12 +131,15 @@ export {
   splitCaptionText,
   measureCaptionLines,
   captionAvailableWidth,
+  resolveCaptionFadeEnvelope,
+  DEFAULT_CAPTION_FADE_FRAMES,
   CAPTION_SAFE_AREA,
   CAPTION_LAYOUT,
   type CaptionLanguage,
   type CaptionDirection,
   type CaptionLine,
   type CaptionTiming,
+  type CaptionFadeEnvelope,
 } from './captions';
 export { CaptionStrip, type CaptionStripProps } from './captions';
 
