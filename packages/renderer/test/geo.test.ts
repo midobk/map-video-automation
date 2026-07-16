@@ -4,25 +4,25 @@ import {
   findFeaturesByIsoCodes,
   fitProjectionState,
   isKnownIso3,
-  resolveCountryNumericId,
+  resolveCountryName,
   resolveMapZoomProgress,
 } from '../src';
 
 describe('vector geography', () => {
-  it('resolves supported ISO3 codes to world-atlas features', () => {
+  it('resolves valid ISO3 codes to pinned features', () => {
     expect(isKnownIso3('MAR')).toBe(true);
-    expect(resolveCountryNumericId('CAN')).toBeDefined();
+    expect(resolveCountryName('CAN')).toBeDefined();
     expect(findFeaturesByIsoCodes(['MAR', 'CAN'])).toHaveLength(2);
   });
 
-  it('rotates an orthographic focus onto the visible hemisphere', () => {
-    const canada = featureCollectionFromIsoCodes(['CAN']);
-    const state = fitProjectionState('orthographic', [920, 960], canada, {
+  it('centers an orthographic focus on the visible hemisphere', () => {
+    const focus = featureCollectionFromIsoCodes(['CAN']);
+    const state = fitProjectionState('orthographic', [920, 960], focus, {
       padding: 96,
       centerOnFeature: true,
     });
 
-    expect(canada.features).toHaveLength(1);
+    expect(focus.features).toHaveLength(1);
     expect(Math.abs(state.rotate[0])).toBeGreaterThan(1);
     expect(Math.abs(state.rotate[1])).toBeGreaterThan(1);
     expect(Number.isFinite(state.scale)).toBe(true);
