@@ -113,6 +113,20 @@ const mapVideoSceneUnionSchema = z.discriminatedUnion('kind', [
 ]);
 
 export const mapVideoSceneSchema = mapVideoSceneUnionSchema.superRefine((scene, context) => {
+  if (
+    scene.kind === 'map-highlight' &&
+    scene.mapAsset === undefined &&
+    scene.focusIsoCodes.length === 0 &&
+    scene.contextIsoCodes.length === 0 &&
+    scene.labels.length === 0
+  ) {
+    context.addIssue({
+      code: 'custom',
+      path: ['focusIsoCodes'],
+      message: 'Map highlights require a static mapAsset or explicit vector geography.',
+    });
+  }
+
   if (scene.caption === undefined) return;
 
   const language = scene.captionLanguage ?? 'en';
