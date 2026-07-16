@@ -78,9 +78,33 @@ describe('map-video plan schema', () => {
     });
   });
 
+  it('accepts a labels-only world map as explicit vector geography', () => {
+    expect(() =>
+      mapVideoSceneSchema.parse({
+        ...baseScene,
+        kind: 'map-highlight',
+        label: 'Continents',
+        highlighted: ['Africa'],
+        labels: [{ text: 'Africa', longitude: 20, latitude: 5 }],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a map highlight without a static or vector map source', () => {
+    const result = mapVideoSceneSchema.safeParse({
+      ...baseScene,
+      kind: 'map-highlight',
+      label: 'Missing geography',
+      highlighted: ['Canada'],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.path).toEqual(['focusIsoCodes']);
+  });
+
   it.each([
     ['lowercase ISO3', { focusIsoCodes: ['mar'] }],
     ['unknown ISO3', { focusIsoCodes: ['ZZZ'] }],
+    ['non-ISO placeholder', { focusIsoCodes: ['UNK'] }],
     ['duplicate ISO3', { focusIsoCodes: ['MAR', 'MAR'] }],
     ['invalid longitude', { labels: [{ text: 'Invalid', longitude: 181, latitude: 0 }] }],
     ['invalid latitude', { labels: [{ text: 'Invalid', longitude: 0, latitude: -91 }] }],
