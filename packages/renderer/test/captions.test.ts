@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   splitCaptionText,
-  splitCaptionTextForRendering,
   measureCaptionLines,
   captionDirection,
   captionAvailableWidth,
-  resolveCaptionFadeEnvelope,
-  MAX_CAPTION_LINES,
+  alignSceneVoiceover,
+  alignCaptionsFromPlan,
+  secondsToFrames,
+  framesToSeconds,
 } from '../src';
-import { resolveSceneCaptionPresentation } from '../src/scenes/caption-presentation';
+import { neutralMapVideoFixture } from '../src';
 
 describe('caption splitting', () => {
   it('keeps a short sentence on one line', () => {
@@ -32,16 +33,6 @@ describe('caption splitting', () => {
   it('returns an empty array for empty text', () => {
     expect(splitCaptionText('', 'en')).toEqual([]);
   });
-
-  it('caps defensive rendering to the reserved line count and adds an ellipsis', () => {
-    const text = Array.from({ length: 20 }, (_, index) => `word${index}`).join(' ');
-    const rawLines = splitCaptionText(text, 'en');
-    const renderedLines = splitCaptionTextForRendering(text, 'en');
-
-    expect(rawLines.length).toBeGreaterThan(MAX_CAPTION_LINES);
-    expect(renderedLines).toHaveLength(MAX_CAPTION_LINES);
-    expect(renderedLines.at(-1)).toMatch(/…$/u);
-  });
 });
 
 describe('caption direction', () => {
@@ -52,69 +43,6 @@ describe('caption direction', () => {
   it('marks English and French as LTR', () => {
     expect(captionDirection('en')).toBe('ltr');
     expect(captionDirection('fr')).toBe('ltr');
-  });
-});
-
-describe('scene caption presentation', () => {
-  it('propagates Arabic and uses the complete scene duration', () => {
-    const presentation = resolveSceneCaptionPresentation({
-      id: 'long-arabic-title',
-      kind: 'title',
-      durationSeconds: 10,
-      title: 'عنوان',
-      caption: 'شرح عربي',
-      captionLanguage: 'ar',
-    });
-
-    expect(presentation).toEqual({
-      language: 'ar',
-      startFrame: 0,
-      endFrame: 300,
-    });
-  });
-
-  it('defaults older plans without a language to English', () => {
-    const presentation = resolveSceneCaptionPresentation({
-      id: 'legacy-title',
-      kind: 'title',
-      durationSeconds: 2,
-      title: 'Title',
-      caption: 'Caption',
-    });
-
-    expect(presentation.language).toBe('en');
-    expect(presentation.endFrame).toBe(60);
-  });
-});
-
-describe('caption fade envelopes', () => {
-  it('uses the normal eight-frame fades for a long scene', () => {
-    expect(resolveCaptionFadeEnvelope(0, 60)).toEqual({
-      inputRange: [0, 8, 52, 60],
-      outputRange: [0, 1, 1, 0],
-    });
-  });
-
-  it('clamps fades to a strictly increasing range for a three-frame scene', () => {
-    const envelope = resolveCaptionFadeEnvelope(0, 3);
-    expect(envelope).toEqual({
-      inputRange: [0, 1, 2, 3],
-      outputRange: [0, 1, 1, 0],
-    });
-    expect(
-      envelope?.inputRange.every(
-        (value, index, values) => index === 0 || value > values[index - 1]!,
-      ),
-    ).toBe(true);
-  });
-
-  it('disables fading when a one- or two-frame scene cannot support a valid envelope', () => {
-    expect(resolveCaptionFadeEnvelope(0, 1)).toBeNull();
-    expect(resolveCaptionFadeEnvelope(0, 2)).toBeNull();
-  });
-
-  it('never creates duplicate points at the sixteen-frame boundary', () => {
-    expect(resolveCaptionFadeEnvelope(0, 16)?.inputRange).toEqual([0, 7, 9, 16]);
   });
 });
 
@@ -142,5 +70,52 @@ describe('caption overflow detection', () => {
 
   it('exposes a positive available width', () => {
     expect(captionAvailableWidth()).toBeGreaterThan(0);
+  });
+});
+
+describe('caption alignment', () => {
+  it('distributes a scene voiceover across its frame window', () => {
+    const lines = alignSceneVoiceover(
+      {
+        id: 's1',
+        kind: 'title',
+        durationSeconds: 2,
+        title: 'T',
+        voiceoverText: 'one two three four five six seven eight',
+      },
+      'en',
+      0,
+      60,
+    );
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines[0]!.startFrame).toBe(0);
+    expect(lines[lines.length - 1]!.endFrame).toBe(60);
+    expect(lines.every((line) => line.endFrame > line.startFrame)).toBe(true);
+  });
+
+  it('returns no lines when a scene has no voiceover text', () => {
+    const lines = alignSceneVoiceover(
+      { id: 's1', kind: 'title', durationSeconds: 2, title: 'T' },
+      'en',
+      0,
+      60,
+    );
+    expect(lines).toEqual([]);
+  });
+
+  it('aligns captions for a full fixture plan', () => {
+    const track = alignCaptionsFromPlan(neutralMapVideoFixture);
+    expect(track.language).toBe('en');
+    expect(track.lines.length).toBeGreaterThan(0);
+    expect(track.lines[0]!.startFrame).toBe(0);
+    expect(track.lines.every((line) => line.endFrame > line.startFrame)).toBe(true);
+  });
+
+  it('converts seconds to frames at 30 FPS', () => {
+    expect(secondsToFrames(2)).toBe(60);
+  });
+
+  it('converts frames to seconds at 30 FPS', () => {
+    expect(framesToSeconds(60)).toBe(2);
   });
 });

@@ -4,11 +4,13 @@ export {
   captionDirection,
   captionLineSchema,
   captionTimingSchema,
+  captionTrackSchema,
   CAPTION_SAFE_AREA,
   type CaptionLanguage,
   type CaptionDirection,
   type CaptionLine,
   type CaptionTiming,
+  type CaptionTrack,
 } from './types';
 export {
   splitCaptionText,
@@ -27,5 +29,11 @@ export {
   DEFAULT_CAPTION_FADE_FRAMES,
   type CaptionFadeEnvelope,
 } from './fade';
+export {
+  alignCaptionsFromPlan,
+  alignSceneVoiceover,
+  secondsToFrames,
+  framesToSeconds,
+} from './align';
 export { CaptionStrip } from './renderer';
 export type { CaptionStripProps } from './renderer';

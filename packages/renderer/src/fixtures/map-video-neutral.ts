@@ -16,6 +16,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       title: 'Our World',
       subtitle: 'Five continents and one shared ocean',
       eyebrow: 'Map Video Fixture',
+      voiceoverText: 'Our world. Five continents and one shared ocean.',
     },
     {
       id: 'continents',
@@ -33,6 +34,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
         { text: 'Oceania', longitude: 135, latitude: -25 },
       ],
       caption: 'The continents cover about 29% of the surface.',
+      voiceoverText: 'The continents cover about twenty-nine percent of Earth surface.',
     },
     {
       id: 'comparison',
@@ -42,6 +44,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       left: { label: 'Land', value: '29%' },
       right: { label: 'Ocean', value: '71%' },
       caption: 'Oceans dominate the planet.',
+      voiceoverText: 'Oceans dominate the planet, covering seventy-one percent.',
     },
     {
       id: 'outro',
@@ -49,6 +52,7 @@ export const neutralMapVideoFixture: MapVideoPlan = mapVideoPlanSchema.parse({
       durationSeconds: 2,
       title: 'Explore More',
       subtitle: 'Neutral geography, rendered deterministically',
+      voiceoverText: 'Explore more neutral geography, rendered deterministically.',
     },
   ],
 });
