@@ -98,6 +98,7 @@ export const RankingScene: React.FC<SceneProps> = ({ scene, theme }) => {
           startFrame={captionPresentation.startFrame}
           endFrame={captionPresentation.endFrame}
           language={captionPresentation.language}
+          lines={captionPresentation.lines}
         />
       )}
     </SceneShell>

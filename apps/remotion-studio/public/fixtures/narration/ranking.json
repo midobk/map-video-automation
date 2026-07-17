@@ -1,0 +1,10 @@
+{
+  "fixtureName": "ranking",
+  "audioDurationSeconds": 10.5,
+  "captionLinesBySceneId": {
+    "rank-intro": [],
+    "continents-ranking": [],
+    "largest-stat": [],
+    "rank-outro": []
+  }
+}

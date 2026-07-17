@@ -1,0 +1,12 @@
+{
+  "fixtureName": "country-zoom",
+  "audioDurationSeconds": 14,
+  "captionLinesBySceneId": {
+    "cz-intro": [],
+    "morocco": [],
+    "canada": [],
+    "algeria": [],
+    "france": [],
+    "cz-outro": []
+  }
+}

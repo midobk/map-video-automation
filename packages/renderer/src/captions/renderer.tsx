@@ -1,14 +1,15 @@
 import { interpolate, useCurrentFrame } from 'remotion';
 import { resolveFontFamily } from '../assets/fonts';
+import { selectActiveCaptionLine } from '../scenes/caption-presentation';
 import type { VideoTheme } from '../themes/theme-schema';
 import { resolveCaptionFadeEnvelope } from './fade';
 import { captionDirection } from './types';
-import type { CaptionLanguage } from './types';
+import type { CaptionLanguage, CaptionLine } from './types';
 import { splitCaptionTextForRendering } from './split';
 import { CAPTION_LAYOUT } from './layout';
 
 export interface CaptionStripProps {
-  /** Caption text to display. */
+  /** Caption text to display. Ignored when `lines` is provided. */
   text: string;
   /** Validated theme. */
   theme: VideoTheme;
@@ -18,6 +19,14 @@ export interface CaptionStripProps {
   endFrame: number;
   /** Caption language; drives direction and line-splitting budget. */
   language: CaptionLanguage;
+  /**
+   * Optional timed caption lines for the scene. When present, the strip
+   * renders only the single line whose `[startFrame, endFrame)` window
+   * contains the current frame, and renders nothing when no line is active.
+   * When omitted, the strip falls back to rendering `text` across the full
+   * `startFrame`/`endFrame` window.
+   */
+  lines?: CaptionLine[] | undefined;
 }
 
 /**
@@ -31,6 +40,9 @@ export interface CaptionStripProps {
  * - Fades in and out within the provided frame window when the scene is long
  *   enough; ultra-short scenes render at full opacity instead of constructing
  *   duplicate or reversed interpolation points.
+ * - When `lines` is supplied, the strip switches to the timed-caption path:
+ *   `text` is ignored, the line whose window contains the current frame is
+ *   shown alone, and the strip renders nothing between lines.
  */
 export const CaptionStrip: React.FC<CaptionStripProps> = ({
   text,
@@ -38,9 +50,9 @@ export const CaptionStrip: React.FC<CaptionStripProps> = ({
   startFrame,
   endFrame,
   language,
+  lines,
 }) => {
   const frame = useCurrentFrame();
-  const lines = splitCaptionTextForRendering(text, language);
   const direction = captionDirection(language);
   const bodyFamily = resolveFontFamily(theme.typography.bodyFamily);
   const fadeEnvelope = resolveCaptionFadeEnvelope(startFrame, endFrame);
@@ -51,7 +63,18 @@ export const CaptionStrip: React.FC<CaptionStripProps> = ({
       })
     : 1;
 
-  if (lines.length === 0) return null;
+  let renderedText: string | null;
+  if (lines !== undefined) {
+    const activeLine = selectActiveCaptionLine(lines, frame);
+    renderedText = activeLine?.text ?? null;
+  } else {
+    renderedText = text;
+  }
+
+  if (renderedText === null) return null;
+
+  const wrappedLines = splitCaptionTextForRendering(renderedText, language);
+  if (wrappedLines.length === 0) return null;
 
   return (
     <div
@@ -82,7 +105,7 @@ export const CaptionStrip: React.FC<CaptionStripProps> = ({
           textShadow: '0 1px 3px rgba(0,0,0,0.5)',
         }}
       >
-        {lines.map((line, index) => (
+        {wrappedLines.map((line, index) => (
           <div key={index} style={{ whiteSpace: 'nowrap' }}>
             {line}
           </div>
