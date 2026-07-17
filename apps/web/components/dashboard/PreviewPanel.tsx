@@ -14,7 +14,9 @@ interface PreviewPanelProps {
 export function PreviewPanel({ itemId, status, revisions }: PreviewPanelProps) {
   const [currentRevisions, setCurrentRevisions] = useState(revisions);
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; tone: 'success' | 'error' } | null>(
+    null,
+  );
 
   const latest = currentRevisions.at(-1);
 
@@ -25,7 +27,7 @@ export function PreviewPanel({ itemId, status, revisions }: PreviewPanelProps) {
     setPending(false);
 
     if (!result.success) {
-      setMessage(result.error);
+      setMessage({ text: result.error, tone: 'error' });
       return;
     }
 
@@ -34,40 +36,53 @@ export function PreviewPanel({ itemId, status, revisions }: PreviewPanelProps) {
         ? prev.map((r) => (r.id === result.revision.id ? result.revision : r))
         : [...prev, result.revision],
     );
-    setMessage(result.message);
+    setMessage({ text: result.message, tone: 'success' });
   }
 
   return (
-    <div className="dashboard-preview">
-      {message && <div className="dashboard-message">{message}</div>}
-
-      {latest?.render_url ? (
-        <video
-          src={latest.render_url}
-          controls
-          preload="metadata"
-          style={{ width: '100%', maxHeight: 480, borderRadius: 8 }}
-        />
-      ) : latest?.video_plan ? (
-        <div className="dashboard-preview-placeholder">
-          <p>
-            <strong>Revision {latest.revision_number}</strong> generated.
-          </p>
-          {!latest.render_url && (
-            <p className="dashboard-hint">
-              The rendered MP4 is not available in this environment. Run locally
-              with RENDER_MODE=local to produce a downloadable preview.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="dashboard-preview-placeholder">
-          <p>Rendered preview will appear here once research and rendering run.</p>
-          <p className="dashboard-hint">
-            For now, use the Remotion Studio to inspect the neutral fixture.
-          </p>
+    <div className="dashboard-preview-block">
+      {message && (
+        <div
+          className={
+            message.tone === 'error'
+              ? 'dashboard-message dashboard-message-error'
+              : 'dashboard-message'
+          }
+          role={message.tone === 'error' ? 'alert' : 'status'}
+        >
+          {message.text}
         </div>
       )}
+
+      <div className="dashboard-preview">
+        {latest?.render_url ? (
+          <video
+            src={latest.render_url}
+            controls
+            preload="metadata"
+            style={{ width: '100%', maxHeight: 480, borderRadius: 8 }}
+          />
+        ) : latest?.video_plan ? (
+          <div className="dashboard-preview-placeholder">
+            <p>
+              <strong>Revision {latest.revision_number}</strong> generated.
+            </p>
+            {!latest.render_url && (
+              <p className="dashboard-hint">
+                The rendered MP4 is not available in this environment. Run locally
+                with RENDER_MODE=local to produce a downloadable preview.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="dashboard-preview-placeholder">
+            <p>Rendered preview will appear here once research and rendering run.</p>
+            <p className="dashboard-hint">
+              For now, use the Remotion Studio to inspect the neutral fixture.
+            </p>
+          </div>
+        )}
+      </div>
 
       <div className="dashboard-button-row" style={{ marginTop: 16 }}>
         <button

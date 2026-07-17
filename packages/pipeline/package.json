@@ -11,7 +11,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node ../renderer/scripts/fix-esm-imports.mjs dist",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

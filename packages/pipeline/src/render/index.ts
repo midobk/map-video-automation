@@ -1,1 +1,1 @@
-export { renderVideoPreview } from './render-orchestrator';
+export { renderVideoPreview } from './render-orchestrator.js';

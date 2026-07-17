@@ -4,13 +4,13 @@ import type { VideoConfig } from 'remotion/no-react';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import type { VideoPlan } from '../schemas/video-plan';
+import type { VideoPlan } from '../schemas/video-plan.js';
 import {
   MAP_VIDEO_FPS,
   MAP_VIDEO_HEIGHT,
   MAP_VIDEO_WIDTH,
-} from '@mapvideo/renderer/compositions/map-video/schema';
-import { alignCaptionsForScene } from '../captions';
+} from '@mapvideo/renderer';
+import { alignCaptionsForScene } from '../captions/index.js';
 
 /**
  * Render a video plan to a local MP4.
@@ -29,7 +29,10 @@ export async function renderVideoPreview(
 ): Promise<{ renderUrl: string; durationSeconds: number }> {
   const compositionId = 'map-video';
   const require = createRequire(import.meta.url);
-  const entryPoint = require.resolve('@mapvideo/remotion-studio/src/index');
+  // Remotion's bundler handles .ts entries via Webpack/esbuild, so resolve to
+  // the workspace studio's source entry point explicitly.
+  const studioPackageJson = require.resolve('@mapvideo/remotion-studio/package.json');
+  const entryPoint = path.join(path.dirname(studioPackageJson), 'src', 'index.ts');
 
   const bundled = await bundle({
     entryPoint,

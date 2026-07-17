@@ -13,7 +13,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
 
   return (
     <html lang="en">
-      <body data-app-environment={environment.APP_ENV}>{children}</body>
+      <body data-app-environment={environment.APP_ENV} suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
