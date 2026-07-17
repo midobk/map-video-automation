@@ -145,6 +145,19 @@ export const mapVideoPlanSchema = z.object({
   projectId: z.string().min(1).max(64),
   scenes: z.array(mapVideoSceneSchema).min(1).max(32),
   transitionSeconds: z.number().finite().nonnegative().max(2).default(0.5),
+  /**
+   * Optional path to a pre-rendered narration audio asset. Resolved by the
+   * composition at runtime via the `staticFile()` helper, so values should
+   * be relative to the Remotion public dir (e.g. `fixtures/narration/intro.wav`).
+   * When omitted, the composition renders silent.
+   */
+  audioAsset: z.string().min(1).max(512).optional(),
+  /**
+   * Optional total duration of the narration audio in seconds. Captured at
+   * audio-generation time so render code can verify the audio length matches
+   * the scene schedule without re-probing the file.
+   */
+  audioDurationSeconds: z.number().finite().positive().max(600).optional(),
 });
 
 export type MapVideoPlan = z.infer<typeof mapVideoPlanSchema>;
