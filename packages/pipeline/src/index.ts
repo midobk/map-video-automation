@@ -1,4 +1,4 @@
-export { MockResearchAdapter, OpenAiResearchAdapter } from './research';
+export { MockResearchAdapter, OpenAiResearchAdapter, MiniMaxResearchAdapter } from './research';
 export type { ResearchAdapter } from './research';
 export { generateVideoPlan } from './script';
 export { createVoiceProvider, synthesizeNarration } from './tts';

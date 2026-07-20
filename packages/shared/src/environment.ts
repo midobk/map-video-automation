@@ -10,7 +10,7 @@ const environmentBoolean = z.preprocess((value) => {
 export const environmentSchema = z
   .object({
     APP_ENV: z.enum(['local', 'test', 'staging', 'production']).default('local'),
-    PROVIDER_MODE: z.enum(['mock', 'openai']).default('mock'),
+    PROVIDER_MODE: z.enum(['mock', 'openai', 'minimax']).default('mock'),
     RENDER_MODE: z.enum(['local', 'cloud']).default('local'),
     PUBLISHER_MODE: z.enum(['mock', 'real']).default('mock'),
     PUBLISHING_KILL_SWITCH: environmentBoolean.default(true),
@@ -20,6 +20,7 @@ export const environmentSchema = z
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
     SUPABASE_ANON_KEY: z.string().min(1).optional(),
     OPENAI_API_KEY: z.string().min(1).optional(),
+    MINIMAX_API_KEY: z.string().min(1).optional(),
     TTS_PROVIDER: z.enum(['mock', 'elevenlabs']).default('mock'),
     ELEVENLABS_API_KEY: z.string().min(1).optional(),
     ELEVENLABS_VOICE_ID: z.string().min(1).optional(),

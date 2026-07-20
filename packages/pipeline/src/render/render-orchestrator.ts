@@ -4,17 +4,22 @@ import type { VideoConfig } from 'remotion/no-react';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import type { VideoPlan } from '../schemas/video-plan.js';
+import { videoPlanSchema, type VideoPlan } from '../schemas/video-plan.js';
 import {
   buildSceneSchedule,
   concatenateWavBuffers,
+  concatAudioFiles,
   encodeWav,
+  generateSilentAudioFile,
   MAP_VIDEO_FPS,
   MAP_VIDEO_HEIGHT,
   MAP_VIDEO_WIDTH,
   MockVoiceProvider,
+  probeAudioDurationSeconds,
   type MapVideoPlan,
+  type VoiceProvider,
 } from '@mapvideo/renderer';
+import { createVoiceProvider } from '../tts/tts-adapter-factory.js';
 import { alignCaptionsForScene } from '../captions/index.js';
 
 /** Maximum allowed drift between the synthesized audio and the plan total. */
@@ -102,16 +107,64 @@ export async function renderVideoPreview(
  *
  * @returns The plan with `audioAsset` and `audioDurationSeconds` populated.
  */
+export interface EnsurePlanAudioDeps {
+  /** Voice provider; defaults to the env-driven `createVoiceProvider()`. */
+  provider?: VoiceProvider;
+  /** ffprobe-based duration probe; defaults to `probeAudioDurationSeconds`. */
+  probe?: (filePath: string) => Promise<number>;
+  /** Audio concatenation; defaults to `concatAudioFiles` (ffmpeg). */
+  concat?: (inputs: string[], outputPath: string) => Promise<void>;
+  /** Silent-clip generation; defaults to `generateSilentAudioFile` (ffmpeg). */
+  silent?: (durationSeconds: number, outputPath: string) => Promise<void>;
+}
+
 export async function ensurePlanAudio(
   plan: VideoPlan,
   contentItemId: string,
+  deps: EnsurePlanAudioDeps = {},
 ): Promise<VideoPlan> {
   if (plan.rendererPlan.audioAsset) {
     return plan;
   }
 
+  const provider = deps.provider ?? createVoiceProvider();
+  if (provider instanceof MockVoiceProvider) {
+    return ensureMockPlanAudio(plan, contentItemId, provider);
+  }
+  return ensureRealProviderAudio(plan, contentItemId, provider, deps);
+}
+
+/**
+ * Resolve the remotion-studio `public/renders/<contentItemId>` directory.
+ *
+ * The studio package has no exports map; its `public/` directory is resolved
+ * by Remotion's `staticFile()` at bundle time. Writing audio there keeps it
+ * co-located with the studio so any re-render can reuse it.
+ */
+async function resolveStudioRenderDir(contentItemId: string): Promise<string> {
+  const require = createRequire(import.meta.url);
+  const studioPackageJson = require.resolve('@mapvideo/remotion-studio/package.json');
+  const studioPublicDir = path.join(path.dirname(studioPackageJson), 'public');
+  const renderDir = path.join(studioPublicDir, 'renders', contentItemId);
+  await fs.mkdir(renderDir, { recursive: true });
+  return renderDir;
+}
+
+/**
+ * Mock-provider audio path: synthesize a placeholder tone per scene and
+ * **force** each clip to the scene's planned duration via `padOrTruncateWav`
+ * (truncate long, silence-pad short). Concatenates WAVs into `narration.wav`.
+ *
+ * This path is deterministic and unchanged from the pre-real-provider
+ * implementation — it keeps the `render-fixtures` CI job and the
+ * `render-orchestrator` tests byte-stable.
+ */
+async function ensureMockPlanAudio(
+  plan: VideoPlan,
+  contentItemId: string,
+  provider: MockVoiceProvider,
+): Promise<VideoPlan> {
   const schedule = buildSceneSchedule(plan.rendererPlan as MapVideoPlan);
-  const provider = new MockVoiceProvider();
   const wavBuffers: ArrayBuffer[] = [];
   let totalDurationSeconds = 0;
 
@@ -134,15 +187,7 @@ export async function ensurePlanAudio(
   }
 
   const concatenated = concatenateWavBuffers(wavBuffers);
-
-  // The remotion-studio package has no exports map; its `public/` directory is
-  // resolved by Remotion's `staticFile()` at bundle time. Writing there keeps
-  // the audio co-located with the studio so any re-render can reuse it.
-  const require = createRequire(import.meta.url);
-  const studioPackageJson = require.resolve('@mapvideo/remotion-studio/package.json');
-  const studioPublicDir = path.join(path.dirname(studioPackageJson), 'public');
-  const renderDir = path.join(studioPublicDir, 'renders', contentItemId);
-  await fs.mkdir(renderDir, { recursive: true });
+  const renderDir = await resolveStudioRenderDir(contentItemId);
   const audioFileName = 'narration.wav';
   const audioFilePath = path.join(renderDir, audioFileName);
   await fs.writeFile(audioFilePath, Buffer.from(concatenated));
@@ -157,6 +202,77 @@ export async function ensurePlanAudio(
       audioDurationSeconds: totalDurationSeconds,
     },
   };
+}
+
+/**
+ * Real-provider audio path (ElevenLabs etc.): synthesize each scene's
+ * `voiceoverText` to its own clip, **measure** the clip's real duration with
+ * ffprobe, and overwrite the scene's `durationSeconds` to match — the inverse
+ * of the mock path (scene is timed to audio, not audio forced to scene). This
+ * keeps spoken narration aligned with scene cuts without time-compression.
+ *
+ * Per-scene clips (plus silent fillers for scenes without voiceover) are
+ * concatenated into `narration.mp3` via ffmpeg. `audioDurationSeconds` is set
+ * to the sum of scene durations so `verifyAudioDuration` passes by
+ * construction. The mutated plan is re-validated against `videoPlanSchema`.
+ */
+async function ensureRealProviderAudio(
+  plan: VideoPlan,
+  contentItemId: string,
+  provider: VoiceProvider,
+  deps: EnsurePlanAudioDeps,
+): Promise<VideoPlan> {
+  const probe = deps.probe ?? probeAudioDurationSeconds;
+  const concat = deps.concat ?? concatAudioFiles;
+  const silent = deps.silent ?? generateSilentAudioFile;
+  const renderDir = await resolveStudioRenderDir(contentItemId);
+  const clipPaths: string[] = [];
+
+  try {
+    for (let index = 0; index < plan.rendererPlan.scenes.length; index += 1) {
+      const scene = plan.rendererPlan.scenes[index]!;
+      const text = scene.voiceoverText?.trim();
+
+      if (!text) {
+        // No narration for this scene: keep its planned duration and fill with
+        // silence so the concatenated track stays aligned with the timeline.
+        const silentPath = path.join(renderDir, `scene-${index}.mp3`);
+        await silent(scene.durationSeconds, silentPath);
+        clipPaths.push(silentPath);
+        continue;
+      }
+
+      const result = await provider.synthesize({ text });
+      const clipPath = path.join(renderDir, `scene-${index}.${result.format}`);
+      await fs.writeFile(clipPath, Buffer.from(result.audioBuffer));
+      clipPaths.push(clipPath);
+
+      const measured = await probe(clipPath);
+      // The schema requires durationSeconds in (0, 120]; clamp to a safe band.
+      scene.durationSeconds = Math.min(120, Math.max(0.5, measured));
+    }
+
+    const totalDurationSeconds = plan.rendererPlan.scenes.reduce(
+      (sum, scene) => sum + scene.durationSeconds,
+      0,
+    );
+    plan.totalDurationSeconds = totalDurationSeconds;
+
+    if (clipPaths.length > 0) {
+      const audioFileName = 'narration.mp3';
+      const audioFilePath = path.join(renderDir, audioFileName);
+      await concat(clipPaths, audioFilePath);
+      plan.rendererPlan.audioAsset = `renders/${contentItemId}/${audioFileName}`;
+      plan.rendererPlan.audioDurationSeconds = totalDurationSeconds;
+    }
+
+    // Re-validate the mutated plan against the schema before rendering.
+    videoPlanSchema.parse(plan);
+    return plan;
+  } finally {
+    // Clean up per-scene clips; the concatenated narration asset stays.
+    await Promise.all(clipPaths.map((clipPath) => fs.rm(clipPath, { force: true })));
+  }
 }
 
 /**

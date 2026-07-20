@@ -14,3 +14,10 @@ export {
   assertSafeVoiceoverPathSegment,
   UnsafeVoiceoverPathSegmentError,
 } from './path-segment';
+export {
+  probeAudioDurationSeconds,
+  resolveVoiceoverDurationSeconds,
+  concatAudioFiles,
+  generateSilentAudioFile,
+  type AudioDurationProbe,
+} from './server';

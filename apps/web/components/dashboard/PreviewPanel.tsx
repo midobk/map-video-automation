@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { generatePreview } from '../../lib/actions/content';
 import type { PreviewRevision } from '../../lib/actions/content';
 import type { ContentItem } from '@mapvideo/db';
+import {
+  DEFAULT_DURATION_SECONDS,
+  isDurationValid,
+  MAX_DURATION_SECONDS,
+  MIN_DURATION_SECONDS,
+} from '../../lib/duration';
 
 interface PreviewPanelProps {
   itemId: string;
@@ -25,21 +31,10 @@ const TERMINAL_STATUSES: ReadonlyArray<ContentItem['status']> = [
 ];
 
 // Mirrors the zod schema in `createContentSchema` so client-side validation
-// matches the server-side action.
-const MIN_DURATION_SECONDS = 15;
-const MAX_DURATION_SECONDS = 90;
-const DEFAULT_DURATION_SECONDS = 30;
-
+// matches the server-side action. The constants themselves live in
+// `lib/duration` so the MVP `/make` page shares them.
 function isTerminalStatus(status: ContentItem['status']): boolean {
   return TERMINAL_STATUSES.includes(status);
-}
-
-function isDurationValid(value: number): boolean {
-  return (
-    Number.isInteger(value) &&
-    value >= MIN_DURATION_SECONDS &&
-    value <= MAX_DURATION_SECONDS
-  );
 }
 
 export function PreviewPanel({ itemId, status, revisions }: PreviewPanelProps) {
