@@ -43,7 +43,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
       - name: Test
-        run: pnpm test
+        # The web app's integration tests need a live Supabase; they run in
+        # the `database` job below. Excluding `@mapvideo/web` here keeps
+        # the validate job fast and prevents silent test skips from
+        # masking regressions. Other packages (db, pipeline, renderer) do
+        # not need a live database.
+        run: pnpm exec turbo run test --filter=!@mapvideo/web
       - name: Build
         run: pnpm build
       - name: Verify deterministic geo manifest
@@ -76,6 +81,35 @@ jobs:
         run: supabase db reset
       - name: Show applied local migrations
         run: supabase migration list --local
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Capture local Supabase env for the test runner
+        # `supabase status -o env` prints `API_URL=...` and
+        # `SERVICE_ROLE_KEY=...`. The web tests need these as
+        # `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (the names
+        # `@mapvideo/db` reads from `process.env`).
+        id: supabase_env
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          echo "SUPABASE_URL=${API_URL}" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> "$GITHUB_ENV"
+          echo "Captured SUPABASE_URL=${API_URL}"
+      - name: Run @mapvideo/web integration tests against the local stack
+        # The web app's vitest suite includes action-level integration
+        # tests that exercise the Supabase client. They use real
+        # content-item / revision / audit-events rows. The test
+        # fixtures clean up after themselves, but the local stack is
+        # discarded at the end of the job via `supabase stop`.
+        #
+        # Routed through turbo (not `pnpm --filter @mapvideo/web test`
+        # directly) so the `^build` dep on `test` resolves the
+        # renderer's `dist/compositions/map-video/map-video-schema.js`
+        # before vitest tries to import the pipeline's transitive
+        # `@mapvideo/renderer/compositions/map-video/schema`.
+        run: pnpm exec turbo run test --filter=@mapvideo/web
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup

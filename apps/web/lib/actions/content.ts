@@ -12,11 +12,15 @@ import {
   listContentItems,
   getContentItem,
   getContentRevisions,
+  getRevisionResearchReview,
+  recordResearchReviewIfAbsent,
   updateContentStatus as dbUpdateContentStatus,
+  updateContentStatusIf as dbUpdateContentStatusIf,
   setCurrentRevision,
   recordAuditEvent,
 } from '@mapvideo/db';
 import type { ContentItem, ContentRevision } from '@mapvideo/db';
+import { factPackSchema, type FactPack } from '@mapvideo/pipeline';
 import { readServerEnvironment } from '../environment.server';
 
 const missingDatabaseError =
@@ -119,9 +123,18 @@ export async function loadDashboardContent(): Promise<{
 /**
  * Server action: load a single content item plus its revisions.
  */
+export type ContentDetailRevision = PreviewRevision & {
+  /** Raw fact_pack blob from the DB; null when the revision has no research. */
+  factPackRaw: Record<string, unknown> | null;
+  /** Parsed fact pack; null when the raw blob fails factPackSchema validation. */
+  factPack: FactPack | null;
+  /** Most recent research-review audit event for this revision, or null. */
+  researchReview: { created_at: string; claimCount: number; urlCount: number } | null;
+};
+
 export async function loadContentDetail(id: string): Promise<{
   item?: ContentItem;
-  revisions?: PreviewRevision[];
+  revisions?: ContentDetailRevision[];
   audit?: { action: string; created_at: string }[];
   error?: string;
 }> {
@@ -135,16 +148,44 @@ export async function loadContentDetail(id: string): Promise<{
       getContentRevisions(id),
     ]);
     if (!item) return { error: 'Content item not found.' };
+    const currentRevisionId = item.current_revision_id;
+
+    const detailed = await Promise.all(
+      revisions.map(async (r) => {
+        const raw = (r.fact_pack as Record<string, unknown> | null) ?? null;
+        const parsed = raw ? factPackSchema.safeParse(raw) : null;
+        const factPack = parsed && parsed.success ? parsed.data : null;
+        const researchEvent =
+          r.id === currentRevisionId
+            ? await getRevisionResearchReview(r.id).catch(() => null)
+            : null;
+        const meta = (researchEvent?.metadata ?? {}) as {
+          claimCount?: number;
+          urlCount?: number;
+        };
+        return {
+          id: r.id,
+          revision_number: r.revision_number,
+          language: r.language,
+          render_url: r.render_url,
+          video_plan: r.video_plan,
+          created_at: r.created_at,
+          factPackRaw: raw,
+          factPack,
+          researchReview: researchEvent
+            ? {
+                created_at: researchEvent.created_at,
+                claimCount: typeof meta.claimCount === 'number' ? meta.claimCount : 0,
+                urlCount: typeof meta.urlCount === 'number' ? meta.urlCount : 0,
+              }
+            : null,
+        };
+      }),
+    );
+
     return {
       item,
-      revisions: revisions.map((r) => ({
-        id: r.id,
-        revision_number: r.revision_number,
-        language: r.language,
-        render_url: r.render_url,
-        video_plan: r.video_plan,
-        created_at: r.created_at,
-      })),
+      revisions: detailed,
       audit: [],
     };
   } catch (error) {
@@ -187,11 +228,131 @@ export async function updateContentStatus(
 }
 
 /**
+ * Server action: mark the current revision's research as reviewed by a human.
+ *
+ * Verifies that the requested content item is still pointed at the same
+ * revision id the caller saw (defends against the revision changing between
+ * page load and action execution). Records the audit event idempotently —
+ * calling this twice for the same revision is a no-op.
+ *
+ * The persisted fact pack is parsed through `factPackSchema` and the audit
+ * metadata captures the claim and URL counts. Fails closed if the data is
+ * missing or malformed.
+ *
+ * `expectedRevisionId` is optional. The ResearchEvidencePanel call site passes
+ * the revision id the user was viewing; when present and the live
+ * `current_revision_id` differs, the action refuses to write the audit event
+ * (the reviewer would otherwise be signing off on research they never saw).
+ * When omitted, the action uses the current revision id — callers that have
+ * not snapshotted the page (e.g. older clients) still get the safer
+ * "current-as-of-now" behaviour.
+ */
+export async function markResearchReviewed(
+  id: string,
+  expectedRevisionId?: string,
+): Promise<
+  | {
+      success: true;
+      review: { createdAt: string; claimCount: number; urlCount: number; revisionId: string };
+    }
+  | { success: false; error: string }
+> {
+  try {
+    if (!hasDatabaseConfig()) {
+      return { success: false, error: missingDatabaseError };
+    }
+    const item = await getContentItem(id);
+    if (!item) {
+      return { success: false, error: 'Content item not found.' };
+    }
+    const currentRevisionId = item.current_revision_id;
+    if (!currentRevisionId) {
+      return { success: false, error: 'No current revision set; run Generate preview first.' };
+    }
+    if (
+      expectedRevisionId !== undefined &&
+      expectedRevisionId !== currentRevisionId
+    ) {
+      return {
+        success: false,
+        error:
+          'The current revision changed since this page was loaded; refresh and try again.',
+      };
+    }
+    const revisions = await getContentRevisions(id);
+    const revision = revisions.find((r) => r.id === currentRevisionId);
+    if (!revision) {
+      return { success: false, error: 'Current revision no longer exists; refresh and retry.' };
+    }
+    const raw = (revision.fact_pack as Record<string, unknown> | null) ?? null;
+    if (!raw) {
+      return {
+        success: false,
+        error:
+          'No research data on the current revision; cannot mark as reviewed. Re-run Generate preview.',
+      };
+    }
+    const parsed = factPackSchema.safeParse(raw);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error:
+          'Research data is malformed; cannot mark as reviewed. Re-run Generate preview to regenerate.',
+      };
+    }
+    const project = await getDefaultProject();
+    if (!project) {
+      return { success: false, error: 'No default project is configured.' };
+    }
+    const claimCount = parsed.data.claims.length;
+    const urlCount = parsed.data.claims.filter((c) => Boolean(c.source.url)).length;
+    const event = await recordResearchReviewIfAbsent({
+      organization_id: project.organization_id,
+      revisionId: currentRevisionId,
+      claimCount,
+      urlCount,
+    });
+    const meta = (event.metadata ?? {}) as {
+      claimCount?: number;
+      urlCount?: number;
+    };
+    revalidatePath(`/dashboard/content/${id}`);
+    revalidatePath('/dashboard/content');
+    return {
+      success: true,
+      review: {
+        createdAt: event.created_at,
+        claimCount: typeof meta.claimCount === 'number' ? meta.claimCount : claimCount,
+        urlCount: typeof meta.urlCount === 'number' ? meta.urlCount : urlCount,
+        revisionId: currentRevisionId,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to mark research as reviewed.';
+    return { success: false, error: message };
+  }
+}
+
+/**
  * Server action: record an approval or rejection decision.
  *
  * The publishing kill switch is checked again here as a safety belt; even if the
  * UI allows the button, a real publication job cannot start while the switch is
- * enabled.
+ * enabled. Approvals additionally require a matching `revision.research_reviewed`
+ * audit event for the current revision; rejections remain available without it.
+ *
+ * Approval is atomically bound to the reviewed revision. The conditional
+ * `updateContentStatusIf` only applies the status change if the item still
+ * points at the reviewed revision and is still `AWAITING_APPROVAL`. If a
+ * concurrent `generatePreview` call installs a new revision between the
+ * reviewer's read and the status write, the conditional update returns zero
+ * rows and we surface a "stale page" error rather than approving a revision
+ * the reviewer never saw.
+ *
+ * Approval also re-validates the current revision's `fact_pack` against
+ * `factPackSchema` so a write that clears or corrupts the fact pack after
+ * the review cannot slip through. The audit event records the counts, not
+ * the payload — re-parsing at approval time is the safety net.
  */
 export async function recordApprovalDecision(
   id: string,
@@ -211,8 +372,83 @@ export async function recordApprovalDecision(
       return { success: false, error: missingDatabaseError };
     }
 
+    // The reviewed revision id is captured from the audit event and used as
+    // a precondition for the conditional update below. Tracked separately
+    // from the live `current_revision_id` so we can tell "I just looked up
+    // the review for this revision" from "I just looked up the item".
+    let reviewedRevisionId: string | null = null;
+
+    if (decision === 'APPROVED') {
+      const item = await getContentItem(id);
+      if (!item) {
+        return { success: false, error: 'Content item not found.' };
+      }
+      const currentRevisionId = item.current_revision_id;
+      if (!currentRevisionId) {
+        return {
+          success: false,
+          error:
+            'Cannot approve a content item without a current revision. Run Generate preview first.',
+        };
+      }
+      const review = await getRevisionResearchReview(currentRevisionId).catch(() => null);
+      if (!review) {
+        return {
+          success: false,
+          error:
+            'Research has not been reviewed for the current revision. Use “Mark research reviewed” before approving.',
+        };
+      }
+      // Re-validate the current revision's fact pack. The audit event only
+      // records counts, so a write that cleared or corrupted the fact pack
+      // since the review would not be caught by the audit-event check alone.
+      const revisions = await getContentRevisions(id);
+      const currentRevision = revisions.find((r) => r.id === currentRevisionId);
+      if (!currentRevision) {
+        return {
+          success: false,
+          error:
+            'Current revision no longer exists; refresh and try again.',
+        };
+      }
+      const factPackRaw =
+        (currentRevision.fact_pack as Record<string, unknown> | null) ?? null;
+      const parsed = factPackRaw ? factPackSchema.safeParse(factPackRaw) : null;
+      if (!parsed || !parsed.success) {
+        return {
+          success: false,
+          error:
+            'Research data on the current revision is missing or malformed. Re-run Generate preview before approving.',
+        };
+      }
+      reviewedRevisionId = currentRevisionId;
+    }
+
     const nextStatus: ContentItem['status'] = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED';
-    await dbUpdateContentStatus(id, nextStatus);
+
+    if (decision === 'APPROVED' && reviewedRevisionId) {
+      // Conditional update: only succeeds while the item still points at the
+      // reviewed revision and is still AWAITING_APPROVAL. A concurrent
+      // generate that installs a new revision will move the pointer, this
+      // update will affect 0 rows, and we surface a "stale page" error.
+      const updated = await dbUpdateContentStatusIf({
+        id,
+        expectedRevisionId: reviewedRevisionId,
+        expectedStatus: 'AWAITING_APPROVAL',
+        newStatus: nextStatus,
+      });
+      if (!updated) {
+        return {
+          success: false,
+          error:
+            'The content item changed since the page was loaded (e.g. a new revision was generated). Refresh and try again.',
+        };
+      }
+    } else {
+      // Rejection is unconditional.
+      await dbUpdateContentStatus(id, nextStatus);
+    }
+
     const project = await getDefaultProject();
     if (project) {
       await recordAuditEvent({
@@ -221,7 +457,10 @@ export async function recordApprovalDecision(
         action: `approval.${decision.toLowerCase()}`,
         target_type: 'content_item',
         target_id: id,
-        metadata: { killSwitchEnabled: environment.PUBLISHING_KILL_SWITCH },
+        metadata: {
+          killSwitchEnabled: environment.PUBLISHING_KILL_SWITCH,
+          ...(reviewedRevisionId ? { reviewedRevisionId } : {}),
+        },
       });
     }
     revalidatePath(`/dashboard/content/${id}`);
