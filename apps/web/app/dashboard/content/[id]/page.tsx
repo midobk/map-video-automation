@@ -3,6 +3,7 @@ import { loadContentDetail } from '../../../../lib/actions/content';
 import { ApprovalPanel } from '../../../../components/dashboard/ApprovalPanel';
 import { DatabaseSetupBanner } from '../../../../components/dashboard/DatabaseSetupBanner';
 import { PreviewPanel } from '../../../../components/dashboard/PreviewPanel';
+import { ResearchEvidencePanel } from '../../../../components/dashboard/ResearchEvidencePanel';
 
 interface ContentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -25,6 +26,19 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
     notFound();
   }
 
+  const currentRevision = revisions?.find((r) => r.id === item.current_revision_id);
+  // The loader returns the audit event's `created_at` as snake_case to match
+  // the rest of the loader's row shape; the ResearchEvidencePanel component
+  // expects camelCase to match the `markResearchReviewed` action's response
+  // shape. Map once at the seam.
+  const researchReviewForPanel = currentRevision?.researchReview
+    ? {
+        createdAt: currentRevision.researchReview.created_at,
+        claimCount: currentRevision.researchReview.claimCount,
+        urlCount: currentRevision.researchReview.urlCount,
+      }
+    : null;
+
   return (
     <>
       <div className="dashboard-header">
@@ -38,6 +52,15 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
         <div className="dashboard-detail-main">
           <h2>Topic</h2>
           <p className="dashboard-topic">{item.topic_prompt}</p>
+
+          <h2>Research</h2>
+          <ResearchEvidencePanel
+            itemId={item.id}
+            revisionId={currentRevision?.id ?? ''}
+            factPack={currentRevision?.factPack ?? null}
+            factPackRaw={currentRevision?.factPackRaw ?? null}
+            researchReview={researchReviewForPanel}
+          />
 
           <h2>Preview</h2>
           <PreviewPanel itemId={item.id} status={item.status} revisions={revisions ?? []} />
@@ -76,7 +99,13 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
             </dl>
           </div>
 
-          <ApprovalPanel itemId={item.id} status={item.status} />
+          <ApprovalPanel
+            itemId={item.id}
+            status={item.status}
+            hasValidResearch={Boolean(currentRevision?.factPack)}
+            isResearchReviewed={Boolean(currentRevision?.researchReview)}
+            hasCurrentRevision={Boolean(currentRevision)}
+          />
         </aside>
       </section>
     </>

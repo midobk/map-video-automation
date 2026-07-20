@@ -237,9 +237,18 @@ export async function updateContentStatus(
  * The persisted fact pack is parsed through `factPackSchema` and the audit
  * metadata captures the claim and URL counts. Fails closed if the data is
  * missing or malformed.
+ *
+ * `expectedRevisionId` is optional. The ResearchEvidencePanel call site passes
+ * the revision id the user was viewing; when present and the live
+ * `current_revision_id` differs, the action refuses to write the audit event
+ * (the reviewer would otherwise be signing off on research they never saw).
+ * When omitted, the action uses the current revision id — callers that have
+ * not snapshotted the page (e.g. older clients) still get the safer
+ * "current-as-of-now" behaviour.
  */
 export async function markResearchReviewed(
   id: string,
+  expectedRevisionId?: string,
 ): Promise<
   | {
       success: true;
@@ -258,6 +267,16 @@ export async function markResearchReviewed(
     const currentRevisionId = item.current_revision_id;
     if (!currentRevisionId) {
       return { success: false, error: 'No current revision set; run Generate preview first.' };
+    }
+    if (
+      expectedRevisionId !== undefined &&
+      expectedRevisionId !== currentRevisionId
+    ) {
+      return {
+        success: false,
+        error:
+          'The current revision changed since this page was loaded; refresh and try again.',
+      };
     }
     const revisions = await getContentRevisions(id);
     const revision = revisions.find((r) => r.id === currentRevisionId);
