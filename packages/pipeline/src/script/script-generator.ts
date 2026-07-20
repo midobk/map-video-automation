@@ -2,9 +2,24 @@ import type { FactPack } from '../schemas/fact-pack';
 import { videoPlanSchema, type VideoPlan } from '../schemas/video-plan';
 import { neutralDarkTheme } from '@mapvideo/renderer/themes/examples';
 import type { MapVideoPlan, MapVideoScene } from '@mapvideo/renderer/compositions/map-video/schema';
+import { splitCaptionTextForRendering } from '@mapvideo/renderer/captions/split';
+import type { CaptionLanguage } from '@mapvideo/renderer/captions/types';
 
 const DEFAULT_TRANSITION_SECONDS = 0.5;
 const SCENE_PADDING_SECONDS = 0;
+
+/**
+ * Clamp a caption so it wraps within the bottom caption strip's line limit.
+ *
+ * The renderer schema rejects any scene `caption` that wraps to more than
+ * `MAX_CAPTION_LINES` (3) lines. A naive `.slice(0, 120)` can still wrap to 4
+ * lines because greedy word-wrapping leaves per-line slack. This runs the real
+ * splitter (capping to 3 lines with an ellipsis on the last) and rejoins the
+ * lines, so the schema's own re-split is guaranteed to stay within the limit.
+ */
+function clampCaptionToFit(text: string, language: CaptionLanguage): string {
+  return splitCaptionTextForRendering(text, language).join(' ');
+}
 
 /**
  * Turn a validated fact pack into a renderer-ready video plan.
@@ -34,7 +49,7 @@ export function generateVideoPlan(
     durationSeconds: 4,
     title: factPack.topic,
     subtitle: factPack.summary.slice(0, 120),
-    caption: factPack.summary.slice(0, 120),
+    caption: clampCaptionToFit(factPack.summary, 'en'),
     captionLanguage: 'en',
     voiceoverText: titleNarration,
   };
@@ -55,7 +70,7 @@ export function generateVideoPlan(
       contextIsoCodes: [],
       labels: [],
       mapAsset: 'fixtures/maps/world.svg',
-      caption: `Featuring ${entities.slice(0, 4).join(', ')}.`,
+      caption: clampCaptionToFit(`Featuring ${entities.slice(0, 4).join(', ')}.`, 'en'),
       captionLanguage: 'en',
       voiceoverText: mapNarration,
     };
@@ -75,7 +90,7 @@ export function generateVideoPlan(
       title: 'By the numbers',
       left: { label: left.label, value: left.value },
       right: { label: right.label, value: right.value },
-      caption: `${left.label}: ${left.value} · ${right.label}: ${right.value}`,
+      caption: clampCaptionToFit(`${left.label}: ${left.value} · ${right.label}: ${right.value}`, 'en'),
       captionLanguage: 'en',
       voiceoverText: comparisonNarration,
     };
@@ -90,7 +105,7 @@ export function generateVideoPlan(
     durationSeconds: 4,
     title: 'Explore more',
     subtitle: 'Generated for human review',
-    caption: 'Review before publishing.',
+    caption: clampCaptionToFit('Review before publishing.', 'en'),
     captionLanguage: 'en',
     voiceoverText: outroNarration,
   };
