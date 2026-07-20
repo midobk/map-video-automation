@@ -9,6 +9,7 @@ export {
 } from './manifest';
 export { MockVoiceProvider } from './mock-provider';
 export { ElevenLabsVoiceAdapter } from './elevenlabs-adapter';
+export { MiniMaxVoiceAdapter } from './minimax-voice-adapter';
 export { encodeWav, estimateWavDurationSeconds, concatenateWavBuffers } from './wav';
 export {
   assertSafeVoiceoverPathSegment,

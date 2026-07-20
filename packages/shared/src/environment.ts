@@ -21,9 +21,10 @@ export const environmentSchema = z
     SUPABASE_ANON_KEY: z.string().min(1).optional(),
     OPENAI_API_KEY: z.string().min(1).optional(),
     MINIMAX_API_KEY: z.string().min(1).optional(),
-    TTS_PROVIDER: z.enum(['mock', 'elevenlabs']).default('mock'),
+    TTS_PROVIDER: z.enum(['mock', 'elevenlabs', 'minimax']).default('mock'),
     ELEVENLABS_API_KEY: z.string().min(1).optional(),
     ELEVENLABS_VOICE_ID: z.string().min(1).optional(),
+    MINIMAX_TTS_VOICE_ID: z.string().min(1).optional(),
   })
   .superRefine((value, context) => {
     if (

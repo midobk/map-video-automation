@@ -1,6 +1,7 @@
 import {
   MockVoiceProvider,
   ElevenLabsVoiceAdapter,
+  MiniMaxVoiceAdapter,
   type VoiceProvider,
 } from '@mapvideo/renderer/voice';
 import { readServerEnvironment } from '@mapvideo/shared';
@@ -22,6 +23,16 @@ export function createVoiceProvider(): VoiceProvider {
       throw new Error('TTS_PROVIDER=elevenlabs requires ELEVENLABS_API_KEY.');
     }
     return new ElevenLabsVoiceAdapter(apiKey, voiceId);
+  }
+
+  if (provider === 'minimax') {
+    // Reuses MINIMAX_API_KEY (same account as the research adapter).
+    const apiKey = environment.MINIMAX_API_KEY;
+    if (!apiKey) {
+      throw new Error('TTS_PROVIDER=minimax requires MINIMAX_API_KEY.');
+    }
+    const voiceId = environment.MINIMAX_TTS_VOICE_ID ?? 'English_CaptivatingStoryteller';
+    return new MiniMaxVoiceAdapter(apiKey, voiceId);
   }
 
   return new MockVoiceProvider();
