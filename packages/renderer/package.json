@@ -4,11 +4,37 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./voice/server": "./src/voice/server.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./captions/split": {
+      "types": "./src/captions/split.ts",
+      "default": "./dist/captions/split.js"
+    },
+    "./captions/types": {
+      "types": "./src/captions/types.ts",
+      "default": "./dist/captions/types.js"
+    },
+    "./compositions/map-video/schema": {
+      "types": "./src/compositions/map-video/map-video-schema.ts",
+      "default": "./dist/compositions/map-video/map-video-schema.js"
+    },
+    "./themes/examples": {
+      "types": "./src/themes/examples.ts",
+      "default": "./dist/themes/examples.js"
+    },
+    "./voice": {
+      "types": "./src/voice/index.ts",
+      "default": "./dist/voice/index.js"
+    },
+    "./voice/server": {
+      "types": "./src/voice/server.ts",
+      "default": "./dist/voice/server.js"
+    }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/fix-esm-imports.mjs dist",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

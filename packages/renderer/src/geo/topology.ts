@@ -1,7 +1,7 @@
 import { feature } from 'topojson-client';
 import type { Objects, Topology, GeometryObject } from 'topojson-specification';
-import worldAtlas from 'world-atlas/countries-110m.json';
-import landAtlas from 'world-atlas/land-110m.json';
+import worldAtlas from 'world-atlas/countries-110m.json' with { type: 'json' };
+import landAtlas from 'world-atlas/land-110m.json' with { type: 'json' };
 import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 import {
   countryByCanonicalName,

@@ -1,4 +1,4 @@
-import rawDictionary from './country-dictionary.json';
+import rawDictionary from './country-dictionary.json' with { type: 'json' };
 
 export interface CountryRecord {
   /** ISO 3166-1 alpha-3 code. */

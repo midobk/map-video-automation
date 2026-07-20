@@ -38,3 +38,5 @@ export class MockAiProvider implements AiProvider {
     });
   }
 }
+
+export { OpenAiProvider } from './openai-provider';

@@ -6,6 +6,8 @@ export {
   getContentRevisions,
   createContentItem,
   updateContentStatus,
+  createContentRevision,
+  setCurrentRevision,
   getDefaultProject,
   recordAuditEvent,
 } from './repositories/content-repository';

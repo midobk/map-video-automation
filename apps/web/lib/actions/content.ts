@@ -2,17 +2,21 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
 import {
   createContentItem as dbCreateContentItem,
+  createContentRevision,
   getDefaultProject,
   hasDatabaseConfig,
   listContentItems,
   getContentItem,
   getContentRevisions,
   updateContentStatus as dbUpdateContentStatus,
+  setCurrentRevision,
   recordAuditEvent,
 } from '@mapvideo/db';
-import type { ContentItem } from '@mapvideo/db';
+import type { ContentItem, ContentRevision } from '@mapvideo/db';
 import { readServerEnvironment } from '../environment.server';
 
 const missingDatabaseError =
@@ -31,6 +35,11 @@ export type CreateContentInput = z.infer<typeof createContentSchema>;
 export type ContentListItem = Pick<
   ContentItem,
   'id' | 'title' | 'status' | 'risk' | 'updated_at'
+>;
+
+export type PreviewRevision = Pick<
+  ContentRevision,
+  'id' | 'revision_number' | 'language' | 'render_url' | 'video_plan' | 'created_at'
 >;
 
 /**
@@ -112,7 +121,7 @@ export async function loadDashboardContent(): Promise<{
  */
 export async function loadContentDetail(id: string): Promise<{
   item?: ContentItem;
-  revisions?: { revision_number: number; language: string; created_at: string }[];
+  revisions?: PreviewRevision[];
   audit?: { action: string; created_at: string }[];
   error?: string;
 }> {
@@ -129,8 +138,11 @@ export async function loadContentDetail(id: string): Promise<{
     return {
       item,
       revisions: revisions.map((r) => ({
+        id: r.id,
         revision_number: r.revision_number,
         language: r.language,
+        render_url: r.render_url,
+        video_plan: r.video_plan,
         created_at: r.created_at,
       })),
       audit: [],
@@ -217,6 +229,159 @@ export async function recordApprovalDecision(
     return { success: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to record decision.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Server action: run the AI research-to-render pipeline for a content item.
+ *
+ * - Uses the configured research provider (OpenAI when available, otherwise mock).
+ * - Generates a script, synthesizes placeholder audio, and renders an MP4
+ *   preview to apps/web/public/renders when running in local mode.
+ * - Stores the resulting revision and points the content item to it.
+ *
+ * On Vercel preview the local render step may not have a Chrome/Node render
+ * environment; the plan is still saved so the dashboard can display a
+ * composition preview from the stored data.
+ */
+export async function generatePreview(
+  id: string,
+  options: { targetDurationSeconds?: number } = {},
+): Promise<
+  | {
+      success: true;
+      revision: PreviewRevision;
+      renderUrl: string | null;
+      durationSeconds: number;
+      message: string;
+    }
+  | { success: false; error: string }
+> {
+  if (!hasDatabaseConfig()) {
+    return { success: false, error: missingDatabaseError };
+  }
+
+  try {
+    const environment = readServerEnvironment();
+    const project = await getDefaultProject();
+    if (!project) {
+      return { success: false, error: 'No default project is configured.' };
+    }
+
+    const item = await getContentItem(id);
+    if (!item) {
+      return { success: false, error: 'Content item not found.' };
+    }
+
+    await dbUpdateContentStatus(id, 'RENDERING');
+
+    const pipeline = await import('@mapvideo/pipeline');
+    const ResearchAdapter =
+      environment.PROVIDER_MODE === 'openai' && environment.OPENAI_API_KEY
+        ? new pipeline.OpenAiResearchAdapter(environment.OPENAI_API_KEY)
+        : new pipeline.MockResearchAdapter();
+
+    const factPack = await ResearchAdapter.research(item.topic_prompt);
+
+    const targetDurationSeconds = Math.min(
+      90,
+      Math.max(15, options.targetDurationSeconds ?? 30),
+    );
+
+    const videoPlan = pipeline.generateVideoPlan(factPack, {
+      projectId: project.id,
+      targetDurationSeconds,
+    });
+
+    const narrationSegments = videoPlan.rendererPlan.scenes.map((scene) => ({
+      sceneId: scene.id,
+      text: scene.voiceoverText ?? '',
+    }));
+
+    const voiceProvider = pipeline.createVoiceProvider();
+    const ttsResult = await pipeline.synthesizeNarration(narrationSegments, voiceProvider);
+
+    const existingRevisions = await getContentRevisions(id);
+    const nextRevisionNumber = (existingRevisions.at(-1)?.revision_number ?? 0) + 1;
+
+    let renderUrl: string | null = null;
+    let renderError: string | null = null;
+    if (environment.RENDER_MODE === 'local') {
+      try {
+        const renderModule = await import(/* webpackIgnore: true */ '@mapvideo/pipeline/render');
+        const renderDirectory = path.join(process.cwd(), 'public', 'renders');
+        const { renderUrl: publicUrl } = await renderModule.renderVideoPreview(
+          videoPlan,
+          renderDirectory,
+          item.id,
+          nextRevisionNumber,
+        );
+        renderUrl = publicUrl;
+      } catch (error) {
+        renderError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    const revision = await createContentRevision({
+      content_item_id: item.id,
+      revision_number: nextRevisionNumber,
+      language: 'en',
+      fact_pack: factPack as Record<string, unknown>,
+      script: {
+        narrationBySceneId: videoPlan.narrationBySceneId,
+        totalDurationSeconds: videoPlan.totalDurationSeconds,
+        audioDurationSeconds: ttsResult.durationSeconds,
+      } as Record<string, unknown>,
+      video_plan: videoPlan.rendererPlan as Record<string, unknown>,
+      content_hash: createHash('sha256').update(item.topic_prompt).digest('hex'),
+      render_url: renderUrl,
+      created_by: null,
+    });
+
+    await setCurrentRevision(id, revision.id, 'AWAITING_APPROVAL');
+
+    await recordAuditEvent({
+      organization_id: project.organization_id,
+      actor_type: 'user',
+      action: 'content.preview.generated',
+      target_type: 'content_item',
+      target_id: item.id,
+      metadata: {
+        revisionId: revision.id,
+        revisionNumber: revision.revision_number,
+        renderUrl,
+        renderError,
+        providerMode: environment.PROVIDER_MODE,
+        renderMode: environment.RENDER_MODE,
+      },
+    });
+
+    revalidatePath(`/dashboard/content/${id}`);
+    revalidatePath('/dashboard/content');
+
+    const message = renderUrl
+      ? 'Preview rendered and saved.'
+      : renderError
+        ? `Plan generated, but local render failed: ${renderError}`
+        : 'Plan generated. Local rendering is skipped in cloud render mode.';
+
+    return {
+      success: true,
+      revision: {
+        id: revision.id,
+        revision_number: revision.revision_number,
+        language: revision.language,
+        render_url: revision.render_url,
+        video_plan: revision.video_plan,
+        created_at: revision.created_at,
+      },
+      renderUrl,
+      durationSeconds: videoPlan.totalDurationSeconds,
+      message,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to generate preview.';
     return { success: false, error: message };
   }
 }

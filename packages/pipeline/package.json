@@ -1,0 +1,31 @@
+{
+  "name": "@mapvideo/pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./render": {
+      "types": "./src/render/index.ts",
+      "default": "./dist/render/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node ../renderer/scripts/fix-esm-imports.mjs dist",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mapvideo/db": "workspace:*",
+    "@mapvideo/providers": "workspace:*",
+    "@mapvideo/remotion-studio": "workspace:*",
+    "@mapvideo/renderer": "workspace:*",
+    "@mapvideo/shared": "workspace:*",
+    "openai": "4.95.1",
+    "remotion": "4.0.475",
+    "@remotion/renderer": "4.0.475",
+    "@remotion/bundler": "4.0.475",
+    "zod": "4.3.6"
+  }
+}

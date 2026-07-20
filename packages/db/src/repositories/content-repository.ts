@@ -80,6 +80,52 @@ export async function updateContentStatus(
   return data as ContentItem;
 }
 
+export type ContentRevisionInsert = Omit<
+  ContentRevision,
+  'id' | 'created_at' | 'render_url'
+> & {
+  render_url?: string | null;
+};
+
+export async function createContentRevision(
+  insert: ContentRevisionInsert,
+): Promise<ContentRevision> {
+  const client = createServerClient();
+  const { data, error } = await client
+    .from('content_revisions')
+    .insert({
+      ...insert,
+      render_url: insert.render_url ?? null,
+    })
+    .select()
+    .single();
+  if (error || !data) throw new Error(`Failed to create revision: ${error?.message ?? 'unknown'}`);
+  return data as ContentRevision;
+}
+
+export async function setCurrentRevision(
+  contentItemId: string,
+  revisionId: string,
+  status?: ContentItem['status'],
+): Promise<ContentItem> {
+  const client = createServerClient();
+  const update: Record<string, unknown> = {
+    current_revision_id: revisionId,
+    updated_at: new Date().toISOString(),
+  };
+  if (status) update.status = status;
+  const { data, error } = await client
+    .from('content_items')
+    .update(update)
+    .eq('id', contentItemId)
+    .select()
+    .single();
+  if (error || !data) {
+    throw new Error(`Failed to set current revision: ${error?.message ?? 'unknown'}`);
+  }
+  return data as ContentItem;
+}
+
 export async function recordAuditEvent(input: {
   organization_id: string;
   actor_user_id?: string | null;
