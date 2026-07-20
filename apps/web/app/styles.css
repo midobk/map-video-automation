@@ -252,6 +252,27 @@ dd {
   gap: 12px;
   flex-wrap: wrap;
 }
+.dashboard-duration-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #aab7c8;
+  font-size: 0.9em;
+}
+.dashboard-duration-field input {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid #2d4564;
+  border-radius: 8px;
+  background: #0b1626;
+  color: #f4f7fb;
+  font: inherit;
+  text-align: right;
+}
+.dashboard-duration-field input[aria-invalid="true"] {
+  border-color: #f0a85a;
+  background: #1a1207;
+}
 
 /* Forms */
 .dashboard-form {
