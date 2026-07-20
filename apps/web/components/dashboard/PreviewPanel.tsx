@@ -11,19 +11,66 @@ interface PreviewPanelProps {
   revisions: PreviewRevision[];
 }
 
+// Workflow statuses where regenerating a preview is not allowed. These are
+// either terminal decisions (APPROVED / REJECTED) or states where the item
+// is already past the rendering phase and we'd be invalidating downstream
+// workflow state by creating a new revision.
+const TERMINAL_STATUSES: ReadonlyArray<ContentItem['status']> = [
+  'APPROVED',
+  'REJECTED',
+  'SCHEDULED',
+  'PUBLISHING',
+  'PUBLISHED',
+  'PUBLISH_FAILED',
+];
+
+// Mirrors the zod schema in `createContentSchema` so client-side validation
+// matches the server-side action.
+const MIN_DURATION_SECONDS = 15;
+const MAX_DURATION_SECONDS = 90;
+const DEFAULT_DURATION_SECONDS = 30;
+
+function isTerminalStatus(status: ContentItem['status']): boolean {
+  return TERMINAL_STATUSES.includes(status);
+}
+
+function isDurationValid(value: number): boolean {
+  return (
+    Number.isInteger(value) &&
+    value >= MIN_DURATION_SECONDS &&
+    value <= MAX_DURATION_SECONDS
+  );
+}
+
 export function PreviewPanel({ itemId, status, revisions }: PreviewPanelProps) {
   const [currentRevisions, setCurrentRevisions] = useState(revisions);
   const [pending, setPending] = useState(false);
+  const [duration, setDuration] = useState<number>(DEFAULT_DURATION_SECONDS);
   const [message, setMessage] = useState<{ text: string; tone: 'success' | 'error' } | null>(
     null,
   );
 
   const latest = currentRevisions.at(-1);
+  const terminal = isTerminalStatus(status);
+  const inProgress = status === 'RENDERING';
+  const nextRevisionNumber = (currentRevisions.at(-1)?.revision_number ?? 0) + 1;
+  const durationInvalid = !isDurationValid(duration);
+
+  const buttonLabel = pending
+    ? 'Generating…'
+    : inProgress
+      ? 'Rendering…'
+      : currentRevisions.length > 0
+        ? `Regenerate (revision ${nextRevisionNumber})`
+        : 'Generate preview';
 
   async function handleGenerate() {
+    if (terminal || inProgress || durationInvalid) return;
     setPending(true);
     setMessage(null);
-    const result = await generatePreview(itemId);
+    const result = await generatePreview(itemId, {
+      targetDurationSeconds: duration,
+    });
     setPending(false);
 
     if (!result.success) {
@@ -38,6 +85,8 @@ export function PreviewPanel({ itemId, status, revisions }: PreviewPanelProps) {
     );
     setMessage({ text: result.message, tone: 'success' });
   }
+
+  const buttonDisabled = pending || inProgress || terminal || durationInvalid;
 
   return (
     <div className="dashboard-preview-block">
@@ -84,16 +133,53 @@ export function PreviewPanel({ itemId, status, revisions }: PreviewPanelProps) {
         )}
       </div>
 
-      <div className="dashboard-button-row" style={{ marginTop: 16 }}>
+      <div className="dashboard-button-row" style={{ marginTop: 16, gap: 12, alignItems: 'center' }}>
         <button
           type="button"
           className="dashboard-button"
-          disabled={pending || status === 'RENDERING'}
+          disabled={buttonDisabled}
           onClick={handleGenerate}
+          aria-label={buttonLabel}
         >
-          {pending || status === 'RENDERING' ? 'Generating…' : 'Generate preview'}
+          {buttonLabel}
         </button>
+        <label className="dashboard-duration-field">
+          <span>Duration</span>
+          <input
+            type="number"
+            min={MIN_DURATION_SECONDS}
+            max={MAX_DURATION_SECONDS}
+            step={1}
+            value={duration}
+            disabled={pending || inProgress || terminal}
+            onChange={(event) => {
+              const next = Number.parseInt(event.target.value, 10);
+              setDuration(Number.isNaN(next) ? DEFAULT_DURATION_SECONDS : next);
+            }}
+            aria-invalid={durationInvalid}
+            aria-label="Target duration in seconds"
+            style={{ width: 64 }}
+          />
+          <span>s</span>
+        </label>
       </div>
+      {terminal && (
+        <p className="dashboard-hint" role="note">
+          Re-rendering is not available for {status.toLowerCase()} items. Create
+          a new content item to start a fresh pipeline.
+        </p>
+      )}
+      {!terminal && durationInvalid && (
+        <p className="dashboard-hint dashboard-message-warning" role="alert">
+          Duration must be an integer between {MIN_DURATION_SECONDS}s and {MAX_DURATION_SECONDS}s.
+        </p>
+      )}
+      {!terminal && !durationInvalid && currentRevisions.length > 0 && !pending && !inProgress && (
+        <p className="dashboard-hint">
+          Will create revision {nextRevisionNumber} and reset the workflow to
+          AWAITING_APPROVAL.
+        </p>
+      )}
     </div>
   );
 }
