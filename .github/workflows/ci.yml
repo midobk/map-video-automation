@@ -114,6 +114,28 @@ jobs:
         # Building here ensures the dist exists before Remotion's bundler
         # (Webpack) tries to resolve `@mapvideo/renderer`.
         run: pnpm --filter @mapvideo/renderer build
+      - name: Verify generated narration matches committed assets
+        # The narration script (packages/renderer/scripts/generate-narration.ts)
+        # is deterministic: same input -> same WAV/JSON/TS output. If a fixture
+        # changes (e.g. a scene's voiceoverText) and the committer forgot to
+        # re-run the script and commit the regenerated audio, this diff will
+        # catch it. Fails the build on any change to the narration fixtures
+        # or generated metadata.
+        working-directory: .
+        run: |
+          pnpm --filter @mapvideo/renderer exec tsx scripts/generate-narration.ts
+          if [[ -n "$(git status --porcelain \
+              apps/remotion-studio/public/fixtures/narration/ \
+              packages/renderer/src/fixtures/generated/)" ]]; then
+            echo "::error::Narration script produced new output. Run \`pnpm --filter @mapvideo/renderer exec tsx scripts/generate-narration.ts\` locally and commit the changes."
+            git status --porcelain \
+              apps/remotion-studio/public/fixtures/narration/ \
+              packages/renderer/src/fixtures/generated/
+            git diff --stat \
+              apps/remotion-studio/public/fixtures/narration/ \
+              packages/renderer/src/fixtures/generated/
+            exit 1
+          fi
       - name: Render starter fixture
         run: pnpm exec remotion render starter out/starter/starter.mp4
       - name: Render neutral map-video fixture
