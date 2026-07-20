@@ -52,6 +52,10 @@ function toolCallResponse(args: string) {
   };
 }
 
+function contentResponse(content: string) {
+  return { choices: [{ message: { content } }] };
+}
+
 describe('MiniMaxResearchAdapter', () => {
   beforeEach(() => {
     mockCreate.mockReset();
@@ -99,7 +103,39 @@ describe('MiniMaxResearchAdapter', () => {
   it('throws when the response has no tool call', async () => {
     mockCreate.mockResolvedValueOnce({ choices: [{ message: {} }] });
     const adapter = new MiniMaxResearchAdapter('test-key');
-    await expect(adapter.research('No tool call topic')).rejects.toThrow(/tool call/);
+    await expect(adapter.research('No tool call topic')).rejects.toThrow(/did not include a tool call/);
+  });
+
+  it('parses the fact pack from ```json-fenced content when M3 ignores tool_choice', async () => {
+    const fenced = '```json\n' + JSON.stringify(VALID_FACT_PACK) + '\n```';
+    mockCreate.mockResolvedValueOnce(contentResponse(fenced));
+
+    const adapter = new MiniMaxResearchAdapter('test-key');
+    const result = await adapter.research('The Nile river');
+
+    const parsed = factPackSchema.safeParse(result);
+    expect(parsed.success).toBe(true);
+    expect(result.topic).toBe('The Nile river');
+    expect(result.claims.length).toBe(2);
+  });
+
+  it('parses the fact pack from bare JSON content (no fence, surrounding prose)', async () => {
+    const prosey =
+      'Here is the fact pack you requested:\n' +
+      JSON.stringify(VALID_FACT_PACK) +
+      '\nLet me know if you need more.';
+    mockCreate.mockResolvedValueOnce(contentResponse(prosey));
+
+    const adapter = new MiniMaxResearchAdapter('test-key');
+    const result = await adapter.research('The Nile river');
+
+    expect(factPackSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('throws when content has no JSON object', async () => {
+    mockCreate.mockResolvedValueOnce(contentResponse('Sure, I can help with that.'));
+    const adapter = new MiniMaxResearchAdapter('test-key');
+    await expect(adapter.research('No JSON topic')).rejects.toThrow(/did not include a tool call/);
   });
 
   it('throws when the tool-call arguments are not valid JSON', async () => {
