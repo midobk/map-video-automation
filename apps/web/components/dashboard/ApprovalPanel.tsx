@@ -75,8 +75,13 @@ export function ApprovalPanel({
     const researchNotReviewed =
       hasValidResearch === true && isResearchReviewed === false;
 
+    // Approve is gated on (a) having a valid fact pack and (b) a research
+    // review audit event for the current revision. Reject is intentionally
+    // always available — if research is invalid or missing, the right
+    // action is usually to reject, not to be locked out. The server-side
+    // gate in `recordApprovalDecision` is the source of truth.
     const reviewWarning = researchInvalid
-      ? 'Research data is invalid or missing; cannot approve or reject. Re-run Generate preview.'
+      ? 'Research data is invalid or missing; approval is disabled. Reject is still available, or re-run Generate preview.'
       : researchNotReviewed
         ? 'Research review required before approval.'
         : null;
@@ -100,7 +105,7 @@ export function ApprovalPanel({
           <button
             type="button"
             className="dashboard-button dashboard-button-danger"
-            disabled={pending || researchInvalid}
+            disabled={pending}
             onClick={() => handleDecision('REJECTED')}
           >
             Reject

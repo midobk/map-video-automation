@@ -8,6 +8,7 @@ export {
   recordResearchReviewIfAbsent,
   createContentItem,
   updateContentStatus,
+  updateContentStatusIf,
   createContentRevision,
   setCurrentRevision,
   getDefaultProject,

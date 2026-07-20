@@ -15,6 +15,7 @@ import {
   getRevisionResearchReview,
   recordResearchReviewIfAbsent,
   updateContentStatus as dbUpdateContentStatus,
+  updateContentStatusIf as dbUpdateContentStatusIf,
   setCurrentRevision,
   recordAuditEvent,
 } from '@mapvideo/db';
@@ -339,6 +340,19 @@ export async function markResearchReviewed(
  * UI allows the button, a real publication job cannot start while the switch is
  * enabled. Approvals additionally require a matching `revision.research_reviewed`
  * audit event for the current revision; rejections remain available without it.
+ *
+ * Approval is atomically bound to the reviewed revision. The conditional
+ * `updateContentStatusIf` only applies the status change if the item still
+ * points at the reviewed revision and is still `AWAITING_APPROVAL`. If a
+ * concurrent `generatePreview` call installs a new revision between the
+ * reviewer's read and the status write, the conditional update returns zero
+ * rows and we surface a "stale page" error rather than approving a revision
+ * the reviewer never saw.
+ *
+ * Approval also re-validates the current revision's `fact_pack` against
+ * `factPackSchema` so a write that clears or corrupts the fact pack after
+ * the review cannot slip through. The audit event records the counts, not
+ * the payload — re-parsing at approval time is the safety net.
  */
 export async function recordApprovalDecision(
   id: string,
@@ -357,6 +371,12 @@ export async function recordApprovalDecision(
     if (!hasDatabaseConfig()) {
       return { success: false, error: missingDatabaseError };
     }
+
+    // The reviewed revision id is captured from the audit event and used as
+    // a precondition for the conditional update below. Tracked separately
+    // from the live `current_revision_id` so we can tell "I just looked up
+    // the review for this revision" from "I just looked up the item".
+    let reviewedRevisionId: string | null = null;
 
     if (decision === 'APPROVED') {
       const item = await getContentItem(id);
@@ -379,10 +399,56 @@ export async function recordApprovalDecision(
             'Research has not been reviewed for the current revision. Use “Mark research reviewed” before approving.',
         };
       }
+      // Re-validate the current revision's fact pack. The audit event only
+      // records counts, so a write that cleared or corrupted the fact pack
+      // since the review would not be caught by the audit-event check alone.
+      const revisions = await getContentRevisions(id);
+      const currentRevision = revisions.find((r) => r.id === currentRevisionId);
+      if (!currentRevision) {
+        return {
+          success: false,
+          error:
+            'Current revision no longer exists; refresh and try again.',
+        };
+      }
+      const factPackRaw =
+        (currentRevision.fact_pack as Record<string, unknown> | null) ?? null;
+      const parsed = factPackRaw ? factPackSchema.safeParse(factPackRaw) : null;
+      if (!parsed || !parsed.success) {
+        return {
+          success: false,
+          error:
+            'Research data on the current revision is missing or malformed. Re-run Generate preview before approving.',
+        };
+      }
+      reviewedRevisionId = currentRevisionId;
     }
 
     const nextStatus: ContentItem['status'] = decision === 'APPROVED' ? 'APPROVED' : 'REJECTED';
-    await dbUpdateContentStatus(id, nextStatus);
+
+    if (decision === 'APPROVED' && reviewedRevisionId) {
+      // Conditional update: only succeeds while the item still points at the
+      // reviewed revision and is still AWAITING_APPROVAL. A concurrent
+      // generate that installs a new revision will move the pointer, this
+      // update will affect 0 rows, and we surface a "stale page" error.
+      const updated = await dbUpdateContentStatusIf({
+        id,
+        expectedRevisionId: reviewedRevisionId,
+        expectedStatus: 'AWAITING_APPROVAL',
+        newStatus: nextStatus,
+      });
+      if (!updated) {
+        return {
+          success: false,
+          error:
+            'The content item changed since the page was loaded (e.g. a new revision was generated). Refresh and try again.',
+        };
+      }
+    } else {
+      // Rejection is unconditional.
+      await dbUpdateContentStatus(id, nextStatus);
+    }
+
     const project = await getDefaultProject();
     if (project) {
       await recordAuditEvent({
@@ -391,7 +457,10 @@ export async function recordApprovalDecision(
         action: `approval.${decision.toLowerCase()}`,
         target_type: 'content_item',
         target_id: id,
-        metadata: { killSwitchEnabled: environment.PUBLISHING_KILL_SWITCH },
+        metadata: {
+          killSwitchEnabled: environment.PUBLISHING_KILL_SWITCH,
+          ...(reviewedRevisionId ? { reviewedRevisionId } : {}),
+        },
       });
     }
     revalidatePath(`/dashboard/content/${id}`);
