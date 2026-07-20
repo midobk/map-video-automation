@@ -106,6 +106,14 @@ jobs:
           fi
           ffmpeg -version | head -n 1
           ffprobe -version | head -n 1
+      - name: Build workspace packages
+        # The renderer's exports point at its `dist/` for runtime consumption
+        # (so the pipeline package can load compiled JS at runtime). The
+        # `fix-esm-imports.mjs` post-build step rewrites extensionless
+        # relative imports to include `.js`, which Node ESM requires.
+        # Building here ensures the dist exists before Remotion's bundler
+        # (Webpack) tries to resolve `@mapvideo/renderer`.
+        run: pnpm --filter @mapvideo/renderer build
       - name: Render starter fixture
         run: pnpm exec remotion render starter out/starter/starter.mp4
       - name: Render neutral map-video fixture
