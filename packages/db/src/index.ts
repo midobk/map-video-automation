@@ -4,6 +4,8 @@ export {
   listContentItems,
   getContentItem,
   getContentRevisions,
+  getRevisionResearchReview,
+  recordResearchReviewIfAbsent,
   createContentItem,
   updateContentStatus,
   createContentRevision,
