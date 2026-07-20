@@ -103,7 +103,13 @@ jobs:
         # content-item / revision / audit-events rows. The test
         # fixtures clean up after themselves, but the local stack is
         # discarded at the end of the job via `supabase stop`.
-        run: pnpm --filter @mapvideo/web test
+        #
+        # Routed through turbo (not `pnpm --filter @mapvideo/web test`
+        # directly) so the `^build` dep on `test` resolves the
+        # renderer's `dist/compositions/map-video/map-video-schema.js`
+        # before vitest tries to import the pipeline's transitive
+        # `@mapvideo/renderer/compositions/map-video/schema`.
+        run: pnpm exec turbo run test --filter=@mapvideo/web
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
