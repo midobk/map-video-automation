@@ -15,10 +15,8 @@ export {
   assertSafeVoiceoverPathSegment,
   UnsafeVoiceoverPathSegmentError,
 } from './path-segment';
-export {
-  probeAudioDurationSeconds,
-  resolveVoiceoverDurationSeconds,
-  concatAudioFiles,
-  generateSilentAudioFile,
-  type AudioDurationProbe,
-} from './server';
+// NOTE: server-only helpers (probeAudioDurationSeconds, concatAudioFiles,
+// generateSilentAudioFile, resolveVoiceoverDurationSeconds) are intentionally
+// NOT re-exported here. They import `node:child_process` / `node:fs`, which
+// webpack cannot bundle for the browser composition. Import them from
+// `@mapvideo/renderer/voice/server` (server-side only).

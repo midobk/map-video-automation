@@ -8,17 +8,21 @@ import { videoPlanSchema, type VideoPlan } from '../schemas/video-plan.js';
 import {
   buildSceneSchedule,
   concatenateWavBuffers,
-  concatAudioFiles,
   encodeWav,
-  generateSilentAudioFile,
   MAP_VIDEO_FPS,
   MAP_VIDEO_HEIGHT,
   MAP_VIDEO_WIDTH,
   MockVoiceProvider,
-  probeAudioDurationSeconds,
   type MapVideoPlan,
   type VoiceProvider,
 } from '@mapvideo/renderer';
+// Server-only helpers (ffprobe/ffmpeg via node:child_process). Kept out of the
+// browser-facing main index so Remotion's webpack can bundle the composition.
+import {
+  concatAudioFiles,
+  generateSilentAudioFile,
+  probeAudioDurationSeconds,
+} from '@mapvideo/renderer/voice/server';
 import { createVoiceProvider } from '../tts/tts-adapter-factory.js';
 import { alignCaptionsForScene } from '../captions/index.js';
 

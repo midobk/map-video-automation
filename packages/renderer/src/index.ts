@@ -66,15 +66,10 @@ export {
   encodeWav,
   estimateWavDurationSeconds,
   concatenateWavBuffers,
-  probeAudioDurationSeconds,
-  resolveVoiceoverDurationSeconds,
-  concatAudioFiles,
-  generateSilentAudioFile,
   type VoiceProvider,
   type VoiceRequest,
   type VoiceResult,
   type VoiceoverManifest,
-  type AudioDurationProbe,
 } from './voice';
 
 export {
