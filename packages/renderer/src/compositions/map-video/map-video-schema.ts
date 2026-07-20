@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { MAX_CAPTION_LINES, splitCaptionText } from '../../captions/split';
-import { captionLanguageSchema } from '../../captions/types';
+import { captionLanguageSchema, captionLineSchema } from '../../captions/types';
 import { isKnownIso3 } from '../../geo/country-dictionary';
 import { videoThemeSchema } from '../../themes/theme-schema';
 
@@ -9,12 +9,36 @@ export const MAP_VIDEO_FPS = 30;
 export const MAP_VIDEO_WIDTH = 1080;
 export const MAP_VIDEO_HEIGHT = 1920;
 
+/**
+ * Maximum number of timed caption lines any single scene may declare.
+ *
+ * The cap exists so a misbehaving aligner cannot stack dozens of lines into
+ * the bottom strip; the actual rendered line envelope (`CAPTION_LAYOUT.maxLines`)
+ * is much smaller and is enforced by the per-frame `CaptionStrip` rendering.
+ */
+const MAX_TIMED_CAPTION_LINES = 8;
+
+/**
+ * Timed caption lines for a scene.
+ *
+ * Each line's `[startFrame, endFrame)` window is in the scene's local frame
+ * space (i.e. the same convention the aligner uses). The render layer
+ * (`CaptionStrip` + `selectActiveCaptionLine`) picks the line whose window
+ * contains the current frame; non-overlapping ranges therefore guarantee
+ * that at most one line is visible at a time.
+ */
+const sceneCaptionLinesSchema = z
+  .array(captionLineSchema)
+  .max(MAX_TIMED_CAPTION_LINES)
+  .optional();
+
 const baseSceneSchema = z.object({
   id: z.string().min(1).max(64),
   durationSeconds: z.number().finite().positive().max(120),
   caption: z.string().max(300).optional(),
   captionLanguage: captionLanguageSchema.optional(),
   voiceoverText: z.string().max(800).optional(),
+  captionLines: sceneCaptionLinesSchema,
 });
 
 export const titleSceneSchema = baseSceneSchema.extend({
@@ -127,6 +151,31 @@ export const mapVideoSceneSchema = mapVideoSceneUnionSchema.superRefine((scene, 
     });
   }
 
+  if (scene.captionLines !== undefined) {
+    const lines = scene.captionLines;
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index]!;
+      if (line.endFrame <= line.startFrame) {
+        context.addIssue({
+          code: 'custom',
+          path: ['captionLines', index],
+          message: `Caption line ${index} has non-positive duration (startFrame=${line.startFrame}, endFrame=${line.endFrame}).`,
+        });
+      }
+    }
+    for (let index = 1; index < lines.length; index += 1) {
+      const previous = lines[index - 1]!;
+      const current = lines[index]!;
+      if (current.startFrame < previous.endFrame) {
+        context.addIssue({
+          code: 'custom',
+          path: ['captionLines', index],
+          message: `Caption line ${index} starts at frame ${current.startFrame}, which overlaps the previous line ending at frame ${previous.endFrame}. Lines must be non-overlapping half-open intervals.`,
+        });
+      }
+    }
+  }
+
   if (scene.caption === undefined) return;
 
   const language = scene.captionLanguage ?? 'en';
@@ -145,6 +194,19 @@ export const mapVideoPlanSchema = z.object({
   projectId: z.string().min(1).max(64),
   scenes: z.array(mapVideoSceneSchema).min(1).max(32),
   transitionSeconds: z.number().finite().nonnegative().max(2).default(0.5),
+  /**
+   * Optional path to a pre-rendered narration audio asset. Resolved by the
+   * composition at runtime via the `staticFile()` helper, so values should
+   * be relative to the Remotion public dir (e.g. `fixtures/narration/intro.wav`).
+   * When omitted, the composition renders silent.
+   */
+  audioAsset: z.string().min(1).max(512).optional(),
+  /**
+   * Optional total duration of the narration audio in seconds. Captured at
+   * audio-generation time so render code can verify the audio length matches
+   * the scene schedule without re-probing the file.
+   */
+  audioDurationSeconds: z.number().finite().positive().max(600).optional(),
 });
 
 export type MapVideoPlan = z.infer<typeof mapVideoPlanSchema>;

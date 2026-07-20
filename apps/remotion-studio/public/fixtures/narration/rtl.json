@@ -1,0 +1,10 @@
+{
+  "fixtureName": "rtl",
+  "audioDurationSeconds": 10,
+  "captionLinesBySceneId": {
+    "rtl-intro": [],
+    "rtl-continents": [],
+    "rtl-comparison": [],
+    "rtl-outro": []
+  }
+}
