@@ -45,6 +45,77 @@ describe('ElevenLabsVoiceAdapter', () => {
       'ElevenLabsVoiceAdapter requires an API key',
     );
   });
+
+  it('posts to the ElevenLabs TTS endpoint with the right headers and body', async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => {
+        return new Response(new ArrayBuffer(64), {
+          status: 200,
+          headers: { 'x-request-id': 'req-abc-123' },
+        });
+      },
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const adapter = new ElevenLabsVoiceAdapter('test-key', 'voice-7');
+      const result = await adapter.synthesize({ text: 'Hello voice' });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0]!;
+      expect(url).toBe('https://api.elevenlabs.io/v1/text-to-speech/voice-7');
+      expect(init?.method).toBe('POST');
+      expect((init?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+      expect((init?.headers as Record<string, string>)['xi-api-key']).toBe('test-key');
+      const body = JSON.parse(init?.body as string);
+      expect(body.text).toBe('Hello voice');
+      expect(body.model_id).toBe('eleven_multilingual_v2');
+
+      expect(result.format).toBe('mp3');
+      expect(result.audioBuffer.byteLength).toBe(64);
+      expect(result.providerRequestId).toBe('req-abc-123');
+      // ElevenLabs does not return duration metadata; the caller is
+      // expected to probe the rendered MP3 with ffprobe.
+      expect(result.durationSeconds).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('throws when the ElevenLabs API returns a non-OK status', async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => {
+        return new Response('rate limited', { status: 429, statusText: 'Too Many Requests' });
+      },
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const adapter = new ElevenLabsVoiceAdapter('test-key', 'voice-7');
+      await expect(adapter.synthesize({ text: 'Test' })).rejects.toThrow(
+        /ElevenLabs TTS failed: 429/,
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('uses a custom model id when one is provided at construction', async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => new Response(new ArrayBuffer(8), { status: 200 }),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const adapter = new ElevenLabsVoiceAdapter('test-key', 'voice-7', 'eleven_turbo_v2_5');
+      await adapter.synthesize({ text: 'turbo' });
+      const [, init] = fetchMock.mock.calls[0]!;
+      const body = JSON.parse(init?.body as string);
+      expect(body.model_id).toBe('eleven_turbo_v2_5');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 describe('voiceover output safety', () => {
