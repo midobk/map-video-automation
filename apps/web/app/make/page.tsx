@@ -127,7 +127,10 @@ export default function MakePage() {
 
       {result && (
         <section className="dashboard-preview-block" style={{ marginTop: 24 }}>
-          <div className="dashboard-message" role="status">
+          <div
+            className={result.renderUrl ? 'dashboard-message' : 'dashboard-error'}
+            role={result.renderUrl ? 'status' : 'alert'}
+          >
             {result.message}
           </div>
           <div className="dashboard-preview">
@@ -140,10 +143,13 @@ export default function MakePage() {
               />
             ) : (
               <div className="dashboard-preview-placeholder">
-                <p>The rendered MP4 is not available in this environment.</p>
+                <p>No downloadable MP4 was produced.</p>
                 <p className="dashboard-hint">
-                  Run locally with <code>RENDER_MODE=local</code> to produce a
-                  downloadable preview.
+                  {/skipped in cloud render mode/i.test(result.message) ? (
+                    <>Run locally with <code>RENDER_MODE=local</code> to produce a preview.</>
+                  ) : (
+                    <>See the message above for what went wrong, then try again.</>
+                  )}
                 </p>
               </div>
             )}
