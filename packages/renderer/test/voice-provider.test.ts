@@ -1,4 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Mock music-metadata so the probeAudioDurationSeconds tests can run
+// hermetically without an actual MP3 file on disk. The real package
+// integration is covered by the `music-metadata` package's own test
+// suite; here we only need to verify our wrapper's contract.
+const parseFileMock = vi.fn();
+vi.mock('music-metadata', () => ({
+  parseFile: (...args: unknown[]) => parseFileMock(...args),
+}));
+
 import {
   MockVoiceProvider,
   ElevenLabsVoiceAdapter,
@@ -12,7 +22,11 @@ import {
   assertSafeVoiceoverPathSegment,
   UnsafeVoiceoverPathSegmentError,
 } from '../src/voice/path-segment';
-import { resolveVoiceoverDurationSeconds } from '../src/voice/server';
+import {
+  probeAudioDurationSeconds,
+  probeAudioDurationSecondsWithFfprobe,
+  resolveVoiceoverDurationSeconds,
+} from '../src/voice/server';
 
 describe('MockVoiceProvider', () => {
   it('generates a deterministic WAV buffer', async () => {
@@ -165,6 +179,58 @@ describe('voiceover output safety', () => {
 
     expect(duration).toBe(1.25);
     expect(probe).not.toHaveBeenCalled();
+  });
+});
+
+describe('probeAudioDurationSeconds (music-metadata default)', () => {
+  beforeEach(() => {
+    parseFileMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('parses an MP3 via music-metadata and returns a positive duration', async () => {
+    parseFileMock.mockResolvedValueOnce({
+      format: { duration: 7.5 },
+    });
+    const duration = await probeAudioDurationSeconds('/tmp/voice.mp3');
+    expect(duration).toBe(7.5);
+    expect(parseFileMock).toHaveBeenCalledWith(
+      '/tmp/voice.mp3',
+      expect.objectContaining({ duration: true, skipCovers: true }),
+    );
+  });
+
+  it('rejects when the metadata returns a non-positive duration', async () => {
+    parseFileMock.mockResolvedValueOnce({ format: { duration: 0 } });
+    await expect(probeAudioDurationSeconds('/tmp/voice.mp3')).rejects.toThrow(
+      /invalid duration/,
+    );
+  });
+
+  it('rejects when the metadata returns no duration field', async () => {
+    parseFileMock.mockResolvedValueOnce({ format: {} });
+    await expect(probeAudioDurationSeconds('/tmp/voice.mp3')).rejects.toThrow(
+      /invalid duration/,
+    );
+  });
+
+  it('rejects when music-metadata throws (e.g. unreadable file)', async () => {
+    parseFileMock.mockRejectedValueOnce(new Error('ENOENT: no such file'));
+    await expect(probeAudioDurationSeconds('/tmp/voice.mp3')).rejects.toThrow(
+      /ENOENT/,
+    );
+  });
+});
+
+describe('probeAudioDurationSecondsWithFfprobe (opt-in)', () => {
+  it('is exported as a separate function so callers can opt in', () => {
+    expect(typeof probeAudioDurationSecondsWithFfprobe).toBe('function');
+    // Distinct from the default probe — the names should diverge to make
+    // the choice explicit at the call site.
+    expect(probeAudioDurationSecondsWithFfprobe).not.toBe(probeAudioDurationSeconds);
   });
 });
 
