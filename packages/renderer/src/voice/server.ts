@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promises as fs } from 'node:fs';
+import { parseFile } from 'music-metadata';
 import { estimateWavDurationSeconds } from './wav';
 import type { VoiceResult } from './provider';
 
@@ -10,8 +11,35 @@ export {
 
 export type AudioDurationProbe = (filePath: string) => Promise<number>;
 
-/** Measure an audio file with ffprobe and require a positive finite duration. */
+/**
+ * Default audio-duration probe. Pure-JS via the `music-metadata` package so
+ * the real-provider render path works on machines without an `ffprobe`
+ * binary (developer laptops, container images without ffmpeg installed, etc.).
+ *
+ * music-metadata parses the MP3 frame headers in-process and returns the
+ * computed duration directly — no native binary, no child_process spawn.
+ */
 export async function probeAudioDurationSeconds(filePath: string): Promise<number> {
+  const metadata = await parseFile(filePath, { duration: true, skipCovers: true });
+  const durationSeconds = metadata.format.duration;
+  if (durationSeconds === undefined || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    throw new Error(
+      `music-metadata returned an invalid duration for "${filePath}": ${JSON.stringify(
+        metadata.format.duration,
+      )}`,
+    );
+  }
+  return durationSeconds;
+}
+
+/**
+ * Alternative probe that shells out to `ffprobe`. Faster on machines where
+ * the binary is installed, but requires it on PATH. Kept as an opt-in for
+ * environments that prefer the native tool (or for diagnostics).
+ */
+export async function probeAudioDurationSecondsWithFfprobe(
+  filePath: string,
+): Promise<number> {
   const stdout = await new Promise<string>((resolve, reject) => {
     execFile(
       'ffprobe',
