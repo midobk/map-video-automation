@@ -31,6 +31,10 @@
     "./voice/server": {
       "types": "./src/voice/server.ts",
       "default": "./dist/voice/server.js"
+    },
+    "./voice/server": {
+      "types": "./src/voice/server.ts",
+      "default": "./dist/voice/server.js"
     }
   },
   "scripts": {

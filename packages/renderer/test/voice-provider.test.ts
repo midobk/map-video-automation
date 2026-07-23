@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MockVoiceProvider,
   ElevenLabsVoiceAdapter,
+  MiniMaxVoiceAdapter,
   parseVoiceoverManifest,
   hashVoiceoverText,
   estimateWavDurationSeconds,
@@ -218,5 +219,105 @@ describe('WAV concatenation', () => {
       estimateWavDurationSeconds(a.audioBuffer) + estimateWavDurationSeconds(b.audioBuffer),
       1,
     );
+  });
+});
+
+describe('MiniMaxVoiceAdapter', () => {
+  it('throws when no API key is provided', async () => {
+    const adapter = new MiniMaxVoiceAdapter('', 'English_CaptivatingStoryteller');
+    await expect(adapter.synthesize({ text: 'Test' })).rejects.toThrow(
+      'MiniMaxVoiceAdapter requires an API key',
+    );
+  });
+
+  it('posts to the MiniMax T2A v2 endpoint and decodes hex audio to an ArrayBuffer', async () => {
+    const audioBytes = Buffer.from('ID3 fake mp3 body', 'utf8');
+    const hex = audioBytes.toString('hex');
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => {
+        return new Response(
+          JSON.stringify({
+            base_resp: { status_code: 0, status_msg: 'success' },
+            data: { audio: hex },
+            extra_info: { audio_length: 6012 },
+          }),
+          { status: 200, headers: { 'x-request-id': 'minimax-req-1' } },
+        );
+      },
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const adapter = new MiniMaxVoiceAdapter('test-key', 'English_CaptivatingStoryteller');
+      const result = await adapter.synthesize({ text: 'The Nile river' });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0]!;
+      expect(url).toBe('https://api.minimax.io/v1/t2a_v2');
+      expect(init?.method).toBe('POST');
+      expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer test-key');
+      const body = JSON.parse(init?.body as string);
+      expect(body.model).toBe('speech-02-turbo');
+      expect(body.text).toBe('The Nile river');
+      expect(body.voice_setting.voice_id).toBe('English_CaptivatingStoryteller');
+      expect(body.voice_setting.audio_format).toBe('mp3');
+
+      expect(result.format).toBe('mp3');
+      expect(result.audioBuffer.byteLength).toBe(audioBytes.length);
+      expect(result.durationSeconds).toBeCloseTo(6.012, 3);
+      expect(result.providerRequestId).toBe('minimax-req-1');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('throws when MiniMax returns a non-OK HTTP status', async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => new Response('upstream error', { status: 500, statusText: 'Internal Server Error' }),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const adapter = new MiniMaxVoiceAdapter('test-key', 'English_CaptivatingStoryteller');
+      await expect(adapter.synthesize({ text: 'Test' })).rejects.toThrow(/MiniMax TTS failed: 500/);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('throws on a logical error (non-zero base_resp.status_code)', async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () =>
+        new Response(
+          JSON.stringify({ base_resp: { status_code: 2054, status_msg: 'voice id not exist' } }),
+          { status: 200 },
+        ),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const adapter = new MiniMaxVoiceAdapter('test-key', 'bogus_voice');
+      await expect(adapter.synthesize({ text: 'Test' })).rejects.toThrow(/voice id not exist/);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('throws when the response has no audio data', async () => {
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () =>
+        new Response(
+          JSON.stringify({ base_resp: { status_code: 0, status_msg: 'success' }, data: {} }),
+          { status: 200 },
+        ),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const adapter = new MiniMaxVoiceAdapter('test-key', 'English_CaptivatingStoryteller');
+      await expect(adapter.synthesize({ text: 'Test' })).rejects.toThrow(/did not include audio data/);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { promises as fs } from 'node:fs';
 import { estimateWavDurationSeconds } from './wav';
 import type { VoiceResult } from './provider';
 
@@ -52,6 +53,89 @@ export interface ResolveVoiceoverDurationInput {
   result: Pick<VoiceResult, 'audioBuffer' | 'format' | 'durationSeconds'>;
   outputPath: string;
   probe?: AudioDurationProbe;
+}
+
+/**
+ * Concatenate audio files (e.g. per-scene narration clips) into a single
+ * output file using ffmpeg's concat demuxer with stream copy (`-c copy`).
+ *
+ * Inputs must share the same codec/format parameters — ElevenLabs clips from
+ * the same voice/model do, so copy is fast and lossless. A single input is
+ * copied straight to the output path. The concat list is written to a temp
+ * file next to the output and removed in a `finally`.
+ */
+export async function concatAudioFiles(inputs: string[], outputPath: string): Promise<void> {
+  if (inputs.length === 0) {
+    throw new Error('concatAudioFiles requires at least one input file.');
+  }
+  if (inputs.length === 1) {
+    const only = inputs[0];
+    if (only) {
+      await fs.copyFile(only, outputPath);
+    }
+    return;
+  }
+
+  const listFile = `${outputPath}.concat.txt`;
+  // Quote each path for the concat demuxer's `file '<path>'` syntax.
+  const list = inputs.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n');
+  await fs.writeFile(listFile, list, 'utf8');
+  try {
+    await new Promise<void>((resolve, reject) => {
+      execFile(
+        'ffmpeg',
+        ['-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', outputPath],
+        { encoding: 'utf8' },
+        (error) => {
+          if (error) {
+            reject(new Error(`ffmpeg concat failed: ${error.message}`, { cause: error }));
+            return;
+          }
+          resolve();
+        },
+      );
+    });
+  } finally {
+    await fs.rm(listFile, { force: true });
+  }
+}
+
+/**
+ * Generate a silent MP3 clip of the requested duration. Used to fill scenes
+ * that have no voiceover text so the concatenated narration track stays
+ * aligned with the video timeline (audio length == sum of scene durations).
+ */
+export async function generateSilentAudioFile(
+  durationSeconds: number,
+  outputPath: string,
+): Promise<void> {
+  const seconds = Math.max(0.1, durationSeconds).toFixed(3);
+  await new Promise<void>((resolve, reject) => {
+    execFile(
+      'ffmpeg',
+      [
+        '-f',
+        'lavfi',
+        '-i',
+        `anullsrc=r=44100:cl=mono`,
+        '-t',
+        seconds,
+        '-c:a',
+        'libmp3lame',
+        '-b:a',
+        '96k',
+        outputPath,
+      ],
+      { encoding: 'utf8' },
+      (error) => {
+        if (error) {
+          reject(new Error(`ffmpeg silent-clip generation failed: ${error.message}`, { cause: error }));
+          return;
+        }
+        resolve();
+      },
+    );
+  });
 }
 
 /**

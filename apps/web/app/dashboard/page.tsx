@@ -10,6 +10,11 @@ export default async function DashboardPage() {
       <h1>Dashboard</h1>
       <p className="lede">Create video ideas, review their status, and approve rendered drafts.</p>
 
+      <p className="lede">
+        <Link href="/make">Make a video fast</Link> — type a topic and get a
+        narrated MP4 in one step.
+      </p>
+
       {error && <DatabaseSetupBanner error={error} />}
 
       <section className="dashboard-cards">

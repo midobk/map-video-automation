@@ -62,6 +62,7 @@ export {
   hashVoiceoverText,
   MockVoiceProvider,
   ElevenLabsVoiceAdapter,
+  MiniMaxVoiceAdapter,
   encodeWav,
   estimateWavDurationSeconds,
   concatenateWavBuffers,

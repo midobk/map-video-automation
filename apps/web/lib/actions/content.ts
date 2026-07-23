@@ -22,6 +22,11 @@ import {
 import type { ContentItem, ContentRevision } from '@mapvideo/db';
 import { factPackSchema, type FactPack } from '@mapvideo/pipeline';
 import { readServerEnvironment } from '../environment.server';
+import {
+  DEFAULT_DURATION_SECONDS,
+  MAX_DURATION_SECONDS,
+  MIN_DURATION_SECONDS,
+} from '../duration';
 
 const missingDatabaseError =
   'Supabase is not configured. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY ' +
@@ -31,7 +36,12 @@ const createContentSchema = z.object({
   title: z.string().min(1).max(120),
   topicPrompt: z.string().min(1).max(2000),
   language: z.enum(['en', 'fr', 'ar']).default('en'),
-  targetDurationSeconds: z.coerce.number().int().min(15).max(90).default(30),
+  targetDurationSeconds: z.coerce
+    .number()
+    .int()
+    .min(MIN_DURATION_SECONDS)
+    .max(MAX_DURATION_SECONDS)
+    .default(DEFAULT_DURATION_SECONDS),
 });
 
 export type CreateContentInput = z.infer<typeof createContentSchema>;
@@ -519,7 +529,9 @@ export async function generatePreview(
     const ResearchAdapter =
       environment.PROVIDER_MODE === 'openai' && environment.OPENAI_API_KEY
         ? new pipeline.OpenAiResearchAdapter(environment.OPENAI_API_KEY)
-        : new pipeline.MockResearchAdapter();
+        : environment.PROVIDER_MODE === 'minimax' && environment.MINIMAX_API_KEY
+          ? new pipeline.MiniMaxResearchAdapter(environment.MINIMAX_API_KEY)
+          : new pipeline.MockResearchAdapter();
 
     const factPack = await ResearchAdapter.research(item.topic_prompt);
 
@@ -532,14 +544,6 @@ export async function generatePreview(
       projectId: project.id,
       targetDurationSeconds,
     });
-
-    const narrationSegments = videoPlan.rendererPlan.scenes.map((scene) => ({
-      sceneId: scene.id,
-      text: scene.voiceoverText ?? '',
-    }));
-
-    const voiceProvider = pipeline.createVoiceProvider();
-    const ttsResult = await pipeline.synthesizeNarration(narrationSegments, voiceProvider);
 
     const existingRevisions = await getContentRevisions(id);
     const nextRevisionNumber = (existingRevisions.at(-1)?.revision_number ?? 0) + 1;
@@ -570,7 +574,7 @@ export async function generatePreview(
       script: {
         narrationBySceneId: videoPlan.narrationBySceneId,
         totalDurationSeconds: videoPlan.totalDurationSeconds,
-        audioDurationSeconds: ttsResult.durationSeconds,
+        audioDurationSeconds: videoPlan.rendererPlan.audioDurationSeconds ?? null,
       } as Record<string, unknown>,
       video_plan: videoPlan.rendererPlan as Record<string, unknown>,
       content_hash: createHash('sha256').update(item.topic_prompt).digest('hex'),
@@ -621,6 +625,82 @@ export async function generatePreview(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to generate preview.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Server action: MVP fast path — create a content item from a topic and
+ * immediately generate its first preview in one round-trip.
+ *
+ * Skips the dashboard's research-review/approval ceremony; the item is left
+ * in `AWAITING_APPROVAL` (set by `generatePreview`) so it still appears on the
+ * dashboard for later review. Returns the render URL so the `/make` page can
+ * play and download the result inline.
+ */
+export async function generateVideoFromTopic(
+  input: CreateContentInput,
+): Promise<
+  | {
+      success: true;
+      itemId: string;
+      renderUrl: string | null;
+      durationSeconds: number;
+      message: string;
+    }
+  | { success: false; error: string }
+> {
+  try {
+    const parsed = createContentSchema.parse(input);
+
+    if (!hasDatabaseConfig()) {
+      return { success: false, error: missingDatabaseError };
+    }
+    const project = await getDefaultProject();
+    if (!project) {
+      return { success: false, error: 'No default project is configured.' };
+    }
+
+    const item = await dbCreateContentItem({
+      project_id: project.id,
+      title: parsed.title,
+      topic_prompt: parsed.topicPrompt,
+      status: 'IDEA',
+      risk: 'LOW',
+      current_revision_id: null,
+      created_by: null,
+    });
+
+    await recordAuditEvent({
+      organization_id: project.organization_id,
+      actor_type: 'user',
+      action: 'content.create',
+      target_type: 'content_item',
+      target_id: item.id,
+      metadata: {
+        language: parsed.language,
+        targetDurationSeconds: parsed.targetDurationSeconds,
+        source: 'make',
+      },
+    });
+
+    const result = await generatePreview(item.id, {
+      targetDurationSeconds: parsed.targetDurationSeconds,
+    });
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    return {
+      success: true,
+      itemId: item.id,
+      renderUrl: result.renderUrl,
+      durationSeconds: result.durationSeconds,
+      message: result.message,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to generate video.';
     return { success: false, error: message };
   }
 }

@@ -34,8 +34,19 @@ export class ElevenLabsVoiceAdapter implements VoiceProvider {
     });
 
     if (!response.ok) {
+      // ElevenLabs puts the actionable reason in the JSON body (e.g.
+      // "Free users cannot use library voices via the API" or "Instantly
+      // cloned voices are not available on your current plan"). Surface it
+      // instead of a bare status so the failure is self-diagnosing.
+      let detail: string;
+      try {
+        const body = await response.json();
+        detail = typeof body?.detail === 'string' ? body.detail : body?.detail?.message ?? JSON.stringify(body);
+      } catch {
+        detail = await response.text().catch(() => '');
+      }
       throw new Error(
-        `ElevenLabs TTS failed: ${response.status} ${response.statusText}`,
+        `ElevenLabs TTS failed: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`,
       );
     }
 
