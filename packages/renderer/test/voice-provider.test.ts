@@ -1,12 +1,25 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import type { parseFile, parseBuffer } from "music-metadata";
+type ParseFileFn = typeof parseFile;
+type ParseBufferFn = typeof parseBuffer;
 
 // Mock music-metadata so the probeAudioDurationSeconds tests can run
 // hermetically without an actual MP3 file on disk. The real package
 // integration is covered by the `music-metadata` package's own test
 // suite; here we only need to verify our wrapper's contract.
+//
+// Tests for the pure-JS concat/silent pipeline (added in the same PR that
+// removed the ffmpeg binary from the defaults) override the mock with the
+// real implementation via `realParseFile` / `realParseBuffer` below, so
+// the round-trip through the actual MP3 frames is exercised end-to-end.
 const parseFileMock = vi.fn();
+const parseBufferMock = vi.fn();
 vi.mock('music-metadata', () => ({
   parseFile: (...args: unknown[]) => parseFileMock(...args),
+  parseBuffer: (...args: unknown[]) => parseBufferMock(...args),
 }));
 
 import {
@@ -23,6 +36,10 @@ import {
   UnsafeVoiceoverPathSegmentError,
 } from '../src/voice/path-segment';
 import {
+  concatAudioFiles,
+  concatAudioFilesWithFfmpeg,
+  generateSilentAudioFile,
+  generateSilentAudioFileWithFfmpeg,
   probeAudioDurationSeconds,
   probeAudioDurationSecondsWithFfprobe,
   resolveVoiceoverDurationSeconds,
@@ -385,5 +402,234 @@ describe('MiniMaxVoiceAdapter', () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+/**
+ * The pure-JS concat + silence pipeline needs to round-trip real MP3
+ * frames through music-metadata to verify its correctness, so it bypasses
+ * the file-level `vi.mock('music-metadata')` setup that the other suites
+ * use for hermetic unit tests. We pull the real implementation via
+ * `vi.importActual` and re-route the existing `parseFileMock` to delegate
+ * to it. `vi.importActual` is async, so the wiring happens in `beforeAll`
+ * once for the whole describe block.
+ */
+describe('generateSilentAudioFile (pure-JS silence frame generator)', () => {
+  let tmpDir = '';
+  let realParseFile: ParseFileFn;
+
+  beforeAll(async () => {
+    const realModule = await vi.importActual<{ parseFile: ParseFileFn; parseBuffer: ParseBufferFn }>('music-metadata');
+    realParseFile = realModule.parseFile;
+  });
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(path.join(tmpdir(), 'silence-frames-'));
+    parseFileMock.mockReset();
+    parseFileMock.mockImplementation(realParseFile);
+    parseBufferMock.mockReset();
+    // parseBuffer is only used by concat, but resetting it here prevents
+    // leftover calls from earlier suites from leaking into the silence tests.
+  });
+
+  afterEach(async () => {
+    parseFileMock.mockReset();
+    parseBufferMock.mockReset();
+    if (tmpDir) {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes an MP3 whose probed duration is in the expected window for the requested duration', async () => {
+    const outputPath = path.join(tmpDir, 'silent-3s.mp3');
+    await generateSilentAudioFile(3, outputPath);
+    const written = await stat(outputPath);
+    expect(written.size).toBeGreaterThan(0);
+    const duration = await probeAudioDurationSeconds(outputPath);
+    // MPEG frame quantization: a 3.0s request becomes ceil(3.0 / 0.026122) frames
+    // = 115 frames ≈ 3.004s, so the readback should land in [2.5, 3.5] with
+    // generous slack for any frame-size rounding.
+    expect(duration).toBeGreaterThanOrEqual(2.5);
+    expect(duration).toBeLessThanOrEqual(3.5);
+  });
+
+  it('scales the number of frames with the requested duration', async () => {
+    const oneSecondPath = path.join(tmpDir, 'silent-1s.mp3');
+    const twoSecondPath = path.join(tmpDir, 'silent-2s.mp3');
+    await generateSilentAudioFile(1, oneSecondPath);
+    await generateSilentAudioFile(2, twoSecondPath);
+    const oneSecondSize = (await stat(oneSecondPath)).size;
+    const twoSecondSize = (await stat(twoSecondPath)).size;
+    // Each frame is 104 bytes; doubling the duration should approximately
+    // double the file size (exact within one frame).
+    expect(twoSecondSize).toBeGreaterThan(oneSecondSize * 1.8);
+    expect(twoSecondSize).toBeLessThan(oneSecondSize * 2.2);
+  });
+
+  it('clamps very small durations up to at least one frame, and rounds fractional durations to whole frames', async () => {
+    // music-metadata's MPEG parser needs at least 5 frames AND 164 bytes
+    // of peek-ahead to confirm a CBR stream and report a duration (the
+    // sync routine bails out as EndOfStream if fewer than 164 bytes
+    // remain after the current frame). The shortest duration the
+    // generator can produce that satisfies both constraints is 5 frames
+    // ≈ 130.6ms — request 0.2s so we have headroom (8 frames ≈ 209ms).
+    const tinyPath = path.join(tmpDir, 'silent-200ms.mp3');
+    await generateSilentAudioFile(0.2, tinyPath);
+    const duration = await probeAudioDurationSeconds(tinyPath);
+    // 8 frames * 1152 samples / 44100 Hz = 0.209s.
+    expect(duration).toBeGreaterThan(0.1);
+    expect(duration).toBeLessThan(0.3);
+  });
+
+  it('is exported alongside an ffmpeg-backed opt-in variant', () => {
+    expect(typeof generateSilentAudioFile).toBe('function');
+    expect(typeof generateSilentAudioFileWithFfmpeg).toBe('function');
+    expect(generateSilentAudioFile).not.toBe(generateSilentAudioFileWithFfmpeg);
+  });
+});
+
+describe('concatAudioFiles (pure-JS frame-level MP3 concat)', () => {
+  let tmpDir = '';
+  let realParseFile: ParseFileFn;
+  let realParseBuffer: ParseBufferFn;
+
+  beforeAll(async () => {
+    const realModule = await vi.importActual<{ parseFile: ParseFileFn; parseBuffer: ParseBufferFn }>('music-metadata');
+    realParseFile = realModule.parseFile;
+    realParseBuffer = realModule.parseBuffer;
+  });
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(path.join(tmpdir(), 'concat-frames-'));
+    parseFileMock.mockReset();
+    parseFileMock.mockImplementation(realParseFile);
+    parseBufferMock.mockReset();
+    parseBufferMock.mockImplementation(realParseBuffer);
+  });
+
+  afterEach(async () => {
+    parseFileMock.mockReset();
+    parseBufferMock.mockReset();
+    if (tmpDir) {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('concatenates two real silence-MP3 fixtures and the output has approximately the sum of their durations', async () => {
+    const a = path.join(tmpDir, 'a.mp3');
+    const b = path.join(tmpDir, 'b.mp3');
+    const out = path.join(tmpDir, 'out.mp3');
+    await generateSilentAudioFile(1, a);
+    await generateSilentAudioFile(2, b);
+    const aDuration = await probeAudioDurationSeconds(a);
+    const bDuration = await probeAudioDurationSeconds(b);
+
+    await concatAudioFiles([a, b], out);
+
+    const outDuration = await probeAudioDurationSeconds(out);
+    // Each silence file reads back as ceil(d / 0.026122) frames ≈ the
+    // requested duration. Allow ~50ms slack per file for frame quantization.
+    const expected = aDuration + bDuration;
+    expect(outDuration).toBeGreaterThanOrEqual(expected - 0.1);
+    expect(outDuration).toBeLessThanOrEqual(expected + 0.1);
+
+    // The output file should exist and be non-empty.
+    const outStat = await stat(out);
+    expect(outStat.size).toBeGreaterThan(0);
+  });
+
+  it('concatenates three or more inputs in order', async () => {
+    const a = path.join(tmpDir, 'a.mp3');
+    const b = path.join(tmpDir, 'b.mp3');
+    const c = path.join(tmpDir, 'c.mp3');
+    const out = path.join(tmpDir, 'out.mp3');
+    await generateSilentAudioFile(0.5, a);
+    await generateSilentAudioFile(0.5, b);
+    await generateSilentAudioFile(0.5, c);
+
+    await concatAudioFiles([a, b, c], out);
+
+    const outDuration = await probeAudioDurationSeconds(out);
+    // 3 * 0.5s ≈ 1.5s plus 3 frames of quantization slack.
+    expect(outDuration).toBeGreaterThanOrEqual(1.4);
+    expect(outDuration).toBeLessThanOrEqual(1.6);
+  });
+
+  it('copies a single input file to the output path without re-reading it twice', async () => {
+    const a = path.join(tmpDir, 'a.mp3');
+    const out = path.join(tmpDir, 'out.mp3');
+    await generateSilentAudioFile(1, a);
+    const aBytes = await readFile(a);
+    await concatAudioFiles([a], out);
+    const outBytes = await readFile(out);
+    expect(outBytes.equals(aBytes)).toBe(true);
+  });
+
+  it('rejects when the input list is empty', async () => {
+    await expect(concatAudioFiles([], path.join(tmpDir, 'out.mp3'))).rejects.toThrow(
+      /at least one input file/,
+    );
+  });
+
+  it('rejects inputs with mismatched sample rate or channel count', async () => {
+    // Mismatched sample rate: build a 48kHz mono file by hand-writing
+    // every frame header with the 48kHz sample-rate index. music-metadata
+    // reads the LAST frame's header to determine the file's sample rate,
+    // so just flipping byte 2 of frame 0 is not enough — every frame
+    // must be re-stamped.
+    const mono44 = path.join(tmpDir, 'mono-44.mp3');
+    await generateSilentAudioFile(1, mono44);
+    const mono48 = path.join(tmpDir, 'mono-48.mp3');
+    {
+      const buf = Buffer.from(await readFile(mono44));
+      // Rewrite every frame's byte 2: 0x10 (44.1kHz) → 0x14 (48kHz).
+      for (let offset = 0; offset + 4 <= buf.length; offset += 104) {
+        if (buf[offset] === 0xff && buf[offset + 1] === 0xfb) {
+          buf[offset + 2] = 0x14;
+        }
+      }
+      await (await import('node:fs/promises')).writeFile(mono48, buf);
+    }
+    // Sanity check: music-metadata should now report 48kHz.
+    const { parseFile } = await import('music-metadata');
+    const probeMeta = await parseFile(mono48);
+    expect(probeMeta.format.sampleRate).toBe(48000);
+
+    await expect(concatAudioFiles([mono44, mono48], path.join(tmpDir, 'out.mp3'))).rejects.toThrow(
+      /sample rate/,
+    );
+  });
+
+  it('rejects inputs with mismatched channel count', async () => {
+    // music-metadata reports `numberOfChannels` based on the channel-mode
+    // bits in byte 3 (lower 2 bits). The silence frames use 11 = mono.
+    // Flip to 00 = stereo on every frame and music-metadata will see 2
+    // channels.
+    const mono = path.join(tmpDir, 'mono.mp3');
+    await generateSilentAudioFile(1, mono);
+    const stereo = path.join(tmpDir, 'stereo.mp3');
+    {
+      const buf = Buffer.from(await readFile(mono));
+      // Rewrite every frame's byte 3: 0xC4 (mono) → 0x04 (stereo).
+      for (let offset = 0; offset + 4 <= buf.length; offset += 104) {
+        if (buf[offset] === 0xff && buf[offset + 1] === 0xfb) {
+          buf[offset + 3] = 0x04;
+        }
+      }
+      await (await import('node:fs/promises')).writeFile(stereo, buf);
+    }
+    const { parseFile } = await import('music-metadata');
+    const probeMeta = await parseFile(stereo);
+    expect(probeMeta.format.numberOfChannels).toBe(2);
+
+    await expect(concatAudioFiles([mono, stereo], path.join(tmpDir, 'out.mp3'))).rejects.toThrow(
+      /channel count/,
+    );
+  });
+
+  it('is exported alongside an ffmpeg-backed opt-in variant', () => {
+    expect(typeof concatAudioFiles).toBe('function');
+    expect(typeof concatAudioFilesWithFfmpeg).toBe('function');
+    expect(concatAudioFiles).not.toBe(concatAudioFilesWithFfmpeg);
   });
 });
