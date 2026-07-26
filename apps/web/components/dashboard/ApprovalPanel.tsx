@@ -17,6 +17,10 @@ interface ApprovalPanelProps {
   hasValidResearch?: boolean;
   /** A `revision.research_reviewed` audit event exists for the current revision. */
   isResearchReviewed?: boolean;
+  /** Parsed video plan is present for the current revision. */
+  hasValidStoryboard?: boolean;
+  /** A `revision.storyboard_reviewed` audit event exists for the current revision. */
+  isStoryboardReviewed?: boolean;
   /** The item has a `current_revision_id` that resolves to a real revision row. */
   hasCurrentRevision?: boolean;
 }
@@ -32,6 +36,8 @@ export function ApprovalPanel({
   status,
   hasValidResearch,
   isResearchReviewed,
+  hasValidStoryboard,
+  isStoryboardReviewed,
   hasCurrentRevision,
 }: ApprovalPanelProps) {
   const [pending, setPending] = useState(false);
@@ -74,17 +80,29 @@ export function ApprovalPanel({
     const researchInvalid = hasValidResearch === false;
     const researchNotReviewed =
       hasValidResearch === true && isResearchReviewed === false;
+    const storyboardInvalid = hasValidStoryboard === false;
+    const storyboardNotReviewed =
+      hasValidStoryboard === true && isStoryboardReviewed === false;
 
-    // Approve is gated on (a) having a valid fact pack and (b) a research
-    // review audit event for the current revision. Reject is intentionally
-    // always available — if research is invalid or missing, the right
-    // action is usually to reject, not to be locked out. The server-side
-    // gate in `recordApprovalDecision` is the source of truth.
-    const reviewWarning = researchInvalid
-      ? 'Research data is invalid or missing; approval is disabled. Reject is still available, or re-run Generate preview.'
-      : researchNotReviewed
-        ? 'Research review required before approval.'
-        : null;
+    // Approve is gated on (a) having a valid fact pack + a matching research
+    // review AND (b) having a valid video plan + a matching storyboard review.
+    // Reject is intentionally always available — if either artifact is
+    // invalid or missing, the right action is usually to reject, not to be
+    // locked out. The server-side gate in `recordApprovalDecision` is the
+    // source of truth.
+    let reviewWarning: string | null = null;
+    if (researchInvalid || storyboardInvalid) {
+      reviewWarning =
+        'Research or storyboard data is invalid or missing; approval is disabled. Reject is still available, or re-run Generate preview.';
+    } else if (researchNotReviewed && storyboardNotReviewed) {
+      reviewWarning = 'Research and storyboard reviews required before approval.';
+    } else if (researchNotReviewed) {
+      reviewWarning = 'Research review required before approval.';
+    } else if (storyboardNotReviewed) {
+      reviewWarning = 'Storyboard review required before approval.';
+    }
+    const approveDisabled =
+      pending || researchInvalid || researchNotReviewed || storyboardInvalid || storyboardNotReviewed;
 
     return (
       <div className="dashboard-panel">
@@ -97,7 +115,7 @@ export function ApprovalPanel({
           <button
             type="button"
             className="dashboard-button dashboard-button-success"
-            disabled={pending || researchInvalid || researchNotReviewed}
+            disabled={approveDisabled}
             onClick={() => handleDecision('APPROVED')}
           >
             Approve

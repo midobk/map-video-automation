@@ -6,6 +6,8 @@ export {
   getContentRevisions,
   getRevisionResearchReview,
   recordResearchReviewIfAbsent,
+  getRevisionStoryboardReview,
+  recordStoryboardReviewIfAbsent,
   createContentItem,
   updateContentStatus,
   updateContentStatusIf,

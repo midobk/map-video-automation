@@ -147,6 +147,111 @@ export async function recordResearchReviewIfAbsent(input: {
   return reExisting;
 }
 
+/**
+ * Return the most recent storyboard-review audit event for a given revision,
+ * or `null` when none exists. Used by the approval gate to verify a human
+ * has acknowledged the storyboard (video plan / scenes / captions) before
+ * allowing the revision to be approved.
+ *
+ * The `target_id` column is the revision id and the `action` column is
+ * `revision.storyboard_reviewed`. A revision is considered "reviewed" if
+ * any such event exists; later events are idempotent (re-marking reviewed
+ * just appends another row, the approval gate only checks for existence).
+ *
+ * Mirrors `getRevisionResearchReview` exactly — same shape, different
+ * action name. The two helpers are intentionally separate so a future
+ * divergence (e.g. storyboard review capturing per-scene approval, or
+ * review-by-actor metadata) can land without touching research review.
+ */
+export async function getRevisionStoryboardReview(
+  revisionId: string,
+): Promise<AuditEvent | null> {
+  const client = createServerClient();
+  const { data, error } = await client
+    .from('audit_events')
+    .select('*')
+    .eq('action', 'revision.storyboard_reviewed')
+    .eq('target_type', 'content_revision')
+    .eq('target_id', revisionId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load storyboard review: ${error.message}`);
+  }
+  return (data as AuditEvent | null) ?? null;
+}
+
+/**
+ * Idempotently record a storyboard review for a given revision.
+ *
+ * Two layers of safety:
+ *
+ * 1. **Application-level read-before-write** (fast path): a quick read of
+ *    `audit_events` for an existing event of this revision. If present,
+ *    return it without writing. Avoids a needless insert in the common
+ *    case and keeps the function correct in databases where the
+ *    application-level constraint below is not (yet) present.
+ *
+ * 2. **Database-level partial unique index** (race-safe): the migration
+ *    `20260726130000_unique_storyboard_review_audit.sql` creates a partial
+ *    unique index on `audit_events(target_id) WHERE action =
+ *    'revision.storyboard_reviewed' AND target_type = 'content_revision'`.
+ *    This closes the race between the pre-read above and the insert
+ *    below: if a concurrent request commits in the gap, our insert fails
+ *    with a 23505 unique violation and we re-read the existing row.
+ *
+ * `planSummary` and `sceneCount` on subsequent calls are ignored — the
+ * first review's metadata is the source of truth. (The application layer
+ * (`markStoryboardReviewed`) parses the video plan itself, so the
+ * summary is always derivable; this is just a dashboard convenience.)
+ */
+export async function recordStoryboardReviewIfAbsent(input: {
+  organization_id: string;
+  actor_user_id?: string | null;
+  revisionId: string;
+  planSummary: string;
+  sceneCount: number;
+}): Promise<AuditEvent> {
+  const existing = await getRevisionStoryboardReview(input.revisionId);
+  if (existing) return existing;
+  const client = createServerClient();
+  const { data, error } = await client
+    .from('audit_events')
+    .insert({
+      organization_id: input.organization_id,
+      actor_user_id: input.actor_user_id ?? null,
+      actor_type: 'user',
+      action: 'revision.storyboard_reviewed',
+      target_type: 'content_revision',
+      target_id: input.revisionId,
+      metadata: { planSummary: input.planSummary, sceneCount: input.sceneCount },
+    })
+    .select()
+    .maybeSingle();
+  if (data) {
+    return data as AuditEvent;
+  }
+  // No row returned. Either Postgres rejected the insert with a unique
+  // violation (existing row inserted by a concurrent request between our
+  // pre-read and our write), or something else went wrong. Distinguish by
+  // the error code; for 23505 (unique_violation) we re-read and return
+  // the existing event. Any other error is fatal.
+  if (error && error.code !== '23505') {
+    throw new Error(`Failed to record storyboard review: ${error.message}`);
+  }
+  const reExisting = await getRevisionStoryboardReview(input.revisionId);
+  if (!reExisting) {
+    // Defensive: the partial index reported a conflict but no row exists.
+    // Indicates an index/schema mismatch. Surface as an error rather than
+    // silently returning a fabricated event.
+    throw new Error(
+      'Storyboard review conflict reported but no existing audit event found.',
+    );
+  }
+  return reExisting;
+}
+
 export async function createContentItem(
   insert: ContentItemInsert,
 ): Promise<ContentItem> {

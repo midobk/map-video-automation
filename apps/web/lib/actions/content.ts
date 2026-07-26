@@ -14,13 +14,15 @@ import {
   getContentRevisions,
   getRevisionResearchReview,
   recordResearchReviewIfAbsent,
+  getRevisionStoryboardReview,
+  recordStoryboardReviewIfAbsent,
   updateContentStatus as dbUpdateContentStatus,
   updateContentStatusIf as dbUpdateContentStatusIf,
   setCurrentRevision,
   recordAuditEvent,
 } from '@mapvideo/db';
 import type { ContentItem, ContentRevision } from '@mapvideo/db';
-import { factPackSchema, type FactPack } from '@mapvideo/pipeline';
+import { factPackSchema, mapVideoPlanSchema, type FactPack, type MapVideoPlan } from '@mapvideo/pipeline';
 import { readServerEnvironment } from '../environment.server';
 import {
   DEFAULT_DURATION_SECONDS,
@@ -140,6 +142,12 @@ export type ContentDetailRevision = PreviewRevision & {
   factPack: FactPack | null;
   /** Most recent research-review audit event for this revision, or null. */
   researchReview: { created_at: string; claimCount: number; urlCount: number } | null;
+  /** Raw video_plan blob from the DB; null when the revision has no storyboard. */
+  videoPlanRaw: Record<string, unknown> | null;
+  /** Parsed renderer plan (MapVideoPlan); null when the raw blob fails `mapVideoPlanSchema` validation. */
+  videoPlan: MapVideoPlan | null;
+  /** Most recent storyboard-review audit event for this revision, or null. */
+  storyboardReview: { created_at: string; sceneCount: number; planSummary: string } | null;
 };
 
 export async function loadContentDetail(id: string): Promise<{
@@ -165,13 +173,24 @@ export async function loadContentDetail(id: string): Promise<{
         const raw = (r.fact_pack as Record<string, unknown> | null) ?? null;
         const parsed = raw ? factPackSchema.safeParse(raw) : null;
         const factPack = parsed && parsed.success ? parsed.data : null;
-        const researchEvent =
+        const planRaw = (r.video_plan as Record<string, unknown> | null) ?? null;
+        const planParsed = planRaw ? mapVideoPlanSchema.safeParse(planRaw) : null;
+        const videoPlan = planParsed && planParsed.success ? planParsed.data : null;
+        const [researchEvent, storyboardEvent] = await Promise.all([
           r.id === currentRevisionId
-            ? await getRevisionResearchReview(r.id).catch(() => null)
-            : null;
+            ? getRevisionResearchReview(r.id).catch(() => null)
+            : Promise.resolve(null),
+          r.id === currentRevisionId
+            ? getRevisionStoryboardReview(r.id).catch(() => null)
+            : Promise.resolve(null),
+        ]);
         const meta = (researchEvent?.metadata ?? {}) as {
           claimCount?: number;
           urlCount?: number;
+        };
+        const storyboardMeta = (storyboardEvent?.metadata ?? {}) as {
+          planSummary?: string;
+          sceneCount?: number;
         };
         return {
           id: r.id,
@@ -187,6 +206,21 @@ export async function loadContentDetail(id: string): Promise<{
                 created_at: researchEvent.created_at,
                 claimCount: typeof meta.claimCount === 'number' ? meta.claimCount : 0,
                 urlCount: typeof meta.urlCount === 'number' ? meta.urlCount : 0,
+              }
+            : null,
+          videoPlanRaw: planRaw,
+          videoPlan,
+          storyboardReview: storyboardEvent
+            ? {
+                created_at: storyboardEvent.created_at,
+                planSummary:
+                  typeof storyboardMeta.planSummary === 'string'
+                    ? storyboardMeta.planSummary
+                    : '',
+                sceneCount:
+                  typeof storyboardMeta.sceneCount === 'number'
+                    ? storyboardMeta.sceneCount
+                    : 0,
               }
             : null,
         };
@@ -344,12 +378,139 @@ export async function markResearchReviewed(
 }
 
 /**
+ * Server action: mark the current revision's storyboard (video plan / scenes
+ * / captions) as reviewed by a human.
+ *
+ * Verifies that the requested content item is still pointed at the same
+ * revision id the caller saw (defends against the revision changing between
+ * page load and action execution). Records the audit event idempotently —
+ * calling this twice for the same revision is a no-op.
+ *
+ * The persisted video plan (the renderer plan) is parsed through
+ * `mapVideoPlanSchema` and the audit metadata captures the scene count and
+ * a short human-readable summary of the plan (scene kinds, in order). Fails
+ * closed if the data is missing or malformed.
+ *
+ * `expectedRevisionId` is optional. The StoryboardPanel call site passes the
+ * revision id the user was viewing; when present and the live
+ * `current_revision_id` differs, the action refuses to write the audit event
+ * (the reviewer would otherwise be signing off on a storyboard they never
+ * saw). When omitted, the action uses the current revision id — callers that
+ * have not snapshotted the page (e.g. older clients) still get the safer
+ * "current-as-of-now" behaviour.
+ *
+ * The captured summary is intentionally short (<= 240 chars) so it fits
+ * cleanly into the audit event's metadata without bloating the table.
+ */
+export async function markStoryboardReviewed(
+  id: string,
+  expectedRevisionId?: string,
+): Promise<
+  | {
+      success: true;
+      review: { createdAt: string; sceneCount: number; planSummary: string; revisionId: string };
+    }
+  | { success: false; error: string }
+> {
+  try {
+    if (!hasDatabaseConfig()) {
+      return { success: false, error: missingDatabaseError };
+    }
+    const item = await getContentItem(id);
+    if (!item) {
+      return { success: false, error: 'Content item not found.' };
+    }
+    const currentRevisionId = item.current_revision_id;
+    if (!currentRevisionId) {
+      return { success: false, error: 'No current revision set; run Generate preview first.' };
+    }
+    if (
+      expectedRevisionId !== undefined &&
+      expectedRevisionId !== currentRevisionId
+    ) {
+      return {
+        success: false,
+        error:
+          'The current revision changed since this page was loaded; refresh and try again.',
+      };
+    }
+    const revisions = await getContentRevisions(id);
+    const revision = revisions.find((r) => r.id === currentRevisionId);
+    if (!revision) {
+      return { success: false, error: 'Current revision no longer exists; refresh and retry.' };
+    }
+    const raw = (revision.video_plan as Record<string, unknown> | null) ?? null;
+    if (!raw) {
+      return {
+        success: false,
+        error:
+          'No storyboard on the current revision; cannot mark as reviewed. Re-run Generate preview.',
+      };
+    }
+    const parsed = mapVideoPlanSchema.safeParse(raw);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error:
+          'Storyboard data is malformed; cannot mark as reviewed. Re-run Generate preview to regenerate.',
+      };
+    }
+    const project = await getDefaultProject();
+    if (!project) {
+      return { success: false, error: 'No default project is configured.' };
+    }
+    const sceneCount = parsed.data.scenes.length;
+    const planSummary = summarizeVideoPlan(parsed.data);
+    const event = await recordStoryboardReviewIfAbsent({
+      organization_id: project.organization_id,
+      revisionId: currentRevisionId,
+      planSummary,
+      sceneCount,
+    });
+    const meta = (event.metadata ?? {}) as {
+      planSummary?: string;
+      sceneCount?: number;
+    };
+    revalidatePath(`/dashboard/content/${id}`);
+    revalidatePath('/dashboard/content');
+    return {
+      success: true,
+      review: {
+        createdAt: event.created_at,
+        planSummary: typeof meta.planSummary === 'string' ? meta.planSummary : planSummary,
+        sceneCount: typeof meta.sceneCount === 'number' ? meta.sceneCount : sceneCount,
+        revisionId: currentRevisionId,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to mark storyboard as reviewed.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Build a short, human-readable summary of a video plan for the audit event
+ * metadata. Lists the scene kinds in order, plus the total plan duration.
+ * Capped at 240 characters so it fits comfortably in the audit row.
+ */
+function summarizeVideoPlan(plan: MapVideoPlan): string {
+  const kinds = plan.scenes.map((s) => s.kind).join(' -> ');
+  const total = plan.scenes.reduce((sum, s) => sum + s.durationSeconds, 0).toFixed(1);
+  const summary = `${plan.scenes.length} scenes (${kinds}); ${total}s total`;
+  return summary.length > 240 ? `${summary.slice(0, 237)}...` : summary;
+}
+
+/**
  * Server action: record an approval or rejection decision.
  *
  * The publishing kill switch is checked again here as a safety belt; even if the
  * UI allows the button, a real publication job cannot start while the switch is
- * enabled. Approvals additionally require a matching `revision.research_reviewed`
- * audit event for the current revision; rejections remain available without it.
+ * enabled. Approvals additionally require BOTH a `revision.research_reviewed`
+ * AND a `revision.storyboard_reviewed` audit event for the current revision;
+ * rejections remain available without either. The two reviews land in
+ * independent audit actions so a future workflow can re-split the gates
+ * (e.g. require research only on HIGH-risk content) without a schema
+ * migration.
  *
  * Approval is atomically bound to the reviewed revision. The conditional
  * `updateContentStatusIf` only applies the status change if the item still
@@ -360,9 +521,10 @@ export async function markResearchReviewed(
  * the reviewer never saw.
  *
  * Approval also re-validates the current revision's `fact_pack` against
- * `factPackSchema` so a write that clears or corrupts the fact pack after
- * the review cannot slip through. The audit event records the counts, not
- * the payload — re-parsing at approval time is the safety net.
+ * `factPackSchema` and its `video_plan` against `mapVideoPlanSchema` so a
+ * write that clears or corrupts either artifact after the review cannot slip
+ * through. The audit events record counts and a short summary, not the
+ * full payload — re-parsing at approval time is the safety net.
  */
 export async function recordApprovalDecision(
   id: string,
@@ -409,9 +571,18 @@ export async function recordApprovalDecision(
             'Research has not been reviewed for the current revision. Use “Mark research reviewed” before approving.',
         };
       }
-      // Re-validate the current revision's fact pack. The audit event only
-      // records counts, so a write that cleared or corrupted the fact pack
-      // since the review would not be caught by the audit-event check alone.
+      const storyboardReview = await getRevisionStoryboardReview(currentRevisionId).catch(() => null);
+      if (!storyboardReview) {
+        return {
+          success: false,
+          error:
+            'Storyboard has not been reviewed for the current revision. Use “Mark storyboard reviewed” before approving.',
+        };
+      }
+      // Re-validate the current revision's fact pack and video plan. The
+      // audit events only record counts and a short summary, so a write
+      // that cleared or corrupted either artifact since the review would
+      // not be caught by the audit-event check alone.
       const revisions = await getContentRevisions(id);
       const currentRevision = revisions.find((r) => r.id === currentRevisionId);
       if (!currentRevision) {
@@ -429,6 +600,16 @@ export async function recordApprovalDecision(
           success: false,
           error:
             'Research data on the current revision is missing or malformed. Re-run Generate preview before approving.',
+        };
+      }
+      const videoPlanRaw =
+        (currentRevision.video_plan as Record<string, unknown> | null) ?? null;
+      const videoPlanParsed = videoPlanRaw ? mapVideoPlanSchema.safeParse(videoPlanRaw) : null;
+      if (!videoPlanParsed || !videoPlanParsed.success) {
+        return {
+          success: false,
+          error:
+            'Storyboard data on the current revision is missing or malformed. Re-run Generate preview before approving.',
         };
       }
       reviewedRevisionId = currentRevisionId;
