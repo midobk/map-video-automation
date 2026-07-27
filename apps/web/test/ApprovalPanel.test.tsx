@@ -71,7 +71,7 @@ describe('ApprovalPanel - AWAITING_APPROVAL + valid + reviewed', () => {
       screen.queryByText(/Research review required before approval/),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText(/Research data is invalid or missing/),
+      screen.queryByText(/Research (or storyboard )?data is invalid or missing/),
     ).not.toBeInTheDocument();
 
     // Click Approve.
@@ -121,7 +121,7 @@ describe('ApprovalPanel - AWAITING_APPROVAL + valid + not reviewed', () => {
     // The "invalid or missing" warning must NOT be shown — the research
     // is valid; it's just not reviewed.
     expect(
-      screen.queryByText(/Research data is invalid or missing/),
+      screen.queryByText(/Research (or storyboard )?data is invalid or missing/),
     ).not.toBeInTheDocument();
 
     // Clicking the disabled Approve button must not invoke the action.
@@ -137,7 +137,7 @@ describe('ApprovalPanel - AWAITING_APPROVAL + valid + not reviewed', () => {
 });
 
 // 3. AWAITING_APPROVAL + invalid research — Approve disabled, warning
-//    "Research data is invalid or missing"
+//    "Research or storyboard data is invalid or missing"
 // -----------------------------------------------------------
 describe('ApprovalPanel - AWAITING_APPROVAL + invalid research', () => {
   it('disables Approve, keeps Reject enabled, and shows the invalid-research warning', () => {
@@ -165,7 +165,7 @@ describe('ApprovalPanel - AWAITING_APPROVAL + invalid research', () => {
     // refactor that drops the "Reject is still available" hint would
     // misdirect reviewers, so we assert the full message.
     expect(
-      screen.getByText(/Research data is invalid or missing/),
+      screen.getByText(/Research (or storyboard )?data is invalid or missing/),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Reject is still available/),
