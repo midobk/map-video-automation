@@ -4,6 +4,7 @@ import { ApprovalPanel } from '../../../../components/dashboard/ApprovalPanel';
 import { DatabaseSetupBanner } from '../../../../components/dashboard/DatabaseSetupBanner';
 import { PreviewPanel } from '../../../../components/dashboard/PreviewPanel';
 import { ResearchEvidencePanel } from '../../../../components/dashboard/ResearchEvidencePanel';
+import { StoryboardPanel } from '../../../../components/dashboard/StoryboardPanel';
 
 interface ContentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -28,14 +29,21 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
 
   const currentRevision = revisions?.find((r) => r.id === item.current_revision_id);
   // The loader returns the audit event's `created_at` as snake_case to match
-  // the rest of the loader's row shape; the ResearchEvidencePanel component
-  // expects camelCase to match the `markResearchReviewed` action's response
-  // shape. Map once at the seam.
+  // the rest of the loader's row shape; both the ResearchEvidencePanel and
+  // the StoryboardPanel components expect camelCase to match their
+  // respective action's response shape. Map once at the seam.
   const researchReviewForPanel = currentRevision?.researchReview
     ? {
         createdAt: currentRevision.researchReview.created_at,
         claimCount: currentRevision.researchReview.claimCount,
         urlCount: currentRevision.researchReview.urlCount,
+      }
+    : null;
+  const storyboardReviewForPanel = currentRevision?.storyboardReview
+    ? {
+        createdAt: currentRevision.storyboardReview.created_at,
+        sceneCount: currentRevision.storyboardReview.sceneCount,
+        planSummary: currentRevision.storyboardReview.planSummary,
       }
     : null;
 
@@ -60,6 +68,15 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
             factPack={currentRevision?.factPack ?? null}
             factPackRaw={currentRevision?.factPackRaw ?? null}
             researchReview={researchReviewForPanel}
+          />
+
+          <h2>Storyboard</h2>
+          <StoryboardPanel
+            itemId={item.id}
+            revisionId={currentRevision?.id ?? ''}
+            videoPlan={currentRevision?.videoPlan ?? null}
+            videoPlanRaw={currentRevision?.videoPlanRaw ?? null}
+            storyboardReview={storyboardReviewForPanel}
           />
 
           <h2>Preview</h2>
@@ -104,6 +121,8 @@ export default async function ContentDetailPage({ params }: ContentDetailPagePro
             status={item.status}
             hasValidResearch={Boolean(currentRevision?.factPack)}
             isResearchReviewed={Boolean(currentRevision?.researchReview)}
+            hasValidStoryboard={Boolean(currentRevision?.videoPlan)}
+            isStoryboardReviewed={Boolean(currentRevision?.storyboardReview)}
             hasCurrentRevision={Boolean(currentRevision)}
           />
         </aside>

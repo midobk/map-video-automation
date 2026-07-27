@@ -20,8 +20,10 @@ import {
 import {
   loadContentDetail,
   markResearchReviewed,
+  markStoryboardReviewed,
   recordApprovalDecision,
 } from '../lib/actions/content';
+import { MockResearchAdapter, generateVideoPlan } from '@mapvideo/pipeline';
 
 /**
  * Tests for the research-review server-side gate.
@@ -70,6 +72,19 @@ const malformedFactPack = {
   claims: [],
 };
 
+/**
+ * Build a real, schema-valid renderer plan for tests that need a storyboard
+ * alongside a fact pack. PR 1H added a second review gate (storyboard) on
+ * top of the research gate, so tests that need the approval to reach the
+ * research-only branch (e.g. conditional update, fact-pack re-validation)
+ * must also satisfy the storyboard gate.
+ */
+async function buildValidVideoPlan(): Promise<Record<string, unknown>> {
+  const factPack = await new MockResearchAdapter().research('Test topic for video plan');
+  const plan = generateVideoPlan(factPack, { projectId: 'test', targetDurationSeconds: 20 });
+  return plan.rendererPlan as unknown as Record<string, unknown>;
+}
+
 const uuid = (): string => {
   // Not cryptographic; only needs to be unique within a single test run.
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -86,7 +101,12 @@ const createdRevisionIds = new Set<string>();
 
 async function makeContentItem(
   factPack: unknown | null,
-  options: { titleSuffix?: string; setCurrent?: boolean; revisionNumber?: number } = {},
+  options: {
+    titleSuffix?: string;
+    setCurrent?: boolean;
+    revisionNumber?: number;
+    videoPlan?: unknown | null;
+  } = {},
 ): Promise<{ item: { id: string }; revision: { id: string } }> {
   const project = await getDefaultProject();
   if (!project) throw new Error('Test requires a default project to be seeded.');
@@ -111,7 +131,7 @@ async function makeContentItem(
     language: 'en',
     fact_pack: factPack as Record<string, unknown> | null,
     script: null,
-    video_plan: null,
+    video_plan: (options.videoPlan ?? null) as Record<string, unknown> | null,
     content_hash: `hash-${title}`,
     created_by: null,
   });
@@ -375,13 +395,19 @@ describe('recordApprovalDecision - research review gate', () => {
 
   it('allows APPROVED after research is reviewed (kill switch disabled)', async () => {
     if (!hasSupabase) return;
-    const { item } = await makeContentItem(validFactPack);
+    // PR 1H added a second gate (storyboard). Both reviews must exist for
+    // approval to reach the conditional update. Build a real video plan
+    // alongside the fact pack and mark it reviewed too.
+    const plan = await buildValidVideoPlan();
+    const { item } = await makeContentItem(validFactPack, { videoPlan: plan });
 
     const reviewed = await markResearchReviewed(item.id);
     if (!reviewed.success) {
       throw new Error(`markResearchReviewed failed unexpectedly: ${reviewed.error}`);
     }
     expect(reviewed.success).toBe(true);
+    const storyboardReviewed = await markStoryboardReviewed(item.id);
+    expect(storyboardReviewed.success).toBe(true);
 
     const result = await recordApprovalDecision(item.id, 'APPROVED');
     expect(result.success).toBe(true);
@@ -634,12 +660,18 @@ describe('recordApprovalDecision - bound to reviewed revision', () => {
     // action (e.g. updateContentStatus by another tab) flips status to
     // REJECTED. The audit event for rev 1 is still there, but the
     // conditional update requires the status to still be AWAITING_APPROVAL.
+    // PR 1H adds a second gate (storyboard). Mark it reviewed too so the
+    // conditional update is the gate under test, not the storyboard gate.
+    const plan = await buildValidVideoPlan();
     const { item } = await makeContentItem(validFactPack, {
       titleSuffix: 'race-status',
+      videoPlan: plan,
     });
     const reviewed = await markResearchReviewed(item.id);
     expect(reviewed.success).toBe(true);
     if (!reviewed.success) return;
+    const storyboardReviewed = await markStoryboardReviewed(item.id);
+    expect(storyboardReviewed.success).toBe(true);
 
     const client = createServerClient();
     // Move the status off AWAITING_APPROVAL directly. The audited
@@ -679,12 +711,18 @@ describe('recordApprovalDecision - re-validates fact pack', () => {
 
   it('refuses approval when the current fact pack is nullified after review', async () => {
     if (!hasSupabase) return;
+    // PR 1H adds a second gate (storyboard). Provide a storyboard and mark
+    // it reviewed so the fact-pack re-validation is the gate under test.
+    const plan = await buildValidVideoPlan();
     const { item, revision } = await makeContentItem(validFactPack, {
       titleSuffix: 'factpack-null',
+      videoPlan: plan,
     });
     const reviewed = await markResearchReviewed(item.id);
     expect(reviewed.success).toBe(true);
     if (!reviewed.success) return;
+    const storyboardReviewed = await markStoryboardReviewed(item.id);
+    expect(storyboardReviewed.success).toBe(true);
 
     // Simulate a write that clears the fact pack after the review.
     const client = createServerClient();
@@ -701,12 +739,18 @@ describe('recordApprovalDecision - re-validates fact pack', () => {
 
   it('refuses approval when the current fact pack is corrupted after review', async () => {
     if (!hasSupabase) return;
+    // PR 1H adds a second gate (storyboard). Provide a storyboard and mark
+    // it reviewed so the fact-pack re-validation is the gate under test.
+    const plan = await buildValidVideoPlan();
     const { item, revision } = await makeContentItem(validFactPack, {
       titleSuffix: 'factpack-corrupt',
+      videoPlan: plan,
     });
     const reviewed = await markResearchReviewed(item.id);
     expect(reviewed.success).toBe(true);
     if (!reviewed.success) return;
+    const storyboardReviewed = await markStoryboardReviewed(item.id);
+    expect(storyboardReviewed.success).toBe(true);
 
     const client = createServerClient();
     // Drop the required `claims` field; factPackSchema requires min(1).
